@@ -1,19 +1,28 @@
 import { router, useFocusEffect } from "expo-router";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import {
-    BackHandler,
-    Image,
-    ImageBackground,
-    Pressable,
-    StyleSheet,
-    TextInput,
-    View,
+  BackHandler,
+  Image,
+  ImageBackground,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
 } from "react-native";
 
 import AppText from "@/components/AppText";
 import Colors from "@/constants/colors";
+import axios from "axios";
+import { API_CONSTANTS } from "@/constants/apiConstants";
 
 export default function SignupScreen() {
+
+  const [form, setForm] = useState({
+    email: "newuser@evergreen.com",
+    password: "Admin@123",
+    confirmPassword: "Admin@123"
+  })
+
   /* Handle Android hardware back */
   useFocusEffect(
     useCallback(() => {
@@ -30,6 +39,30 @@ export default function SignupScreen() {
       return () => subscription.remove();
     }, [])
   );
+
+  const handleChange = (key, value) => {
+    setForm({ ...form, [key]: value });
+  };
+
+  const onHandleSignUp = async () => {
+    if (form.password !== form.confirmPassword) {
+      return;
+    }
+    try {
+      const params = {
+        "email": form.email,
+        "password": form.password
+      }
+      const response = await axios.post(API_CONSTANTS.signUp, params)
+      console.log(response)
+      const { data, status } = response || {}
+      if (status == 200) {
+        router.replace("/login")
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -80,6 +113,9 @@ export default function SignupScreen() {
             placeholder="Type your email"
             placeholderTextColor="#E9B1A0"
             style={styles.input}
+            onChangeText={(text) =>
+              handleChange("email", text)
+            }
           />
         </View>
 
@@ -91,6 +127,9 @@ export default function SignupScreen() {
             placeholderTextColor="#E9B1A0"
             secureTextEntry
             style={styles.input}
+            onChangeText={(text) =>
+              handleChange("password", text)
+            }
           />
         </View>
 
@@ -102,12 +141,15 @@ export default function SignupScreen() {
             placeholderTextColor="#E9B1A0"
             secureTextEntry
             style={styles.input}
+            onChangeText={(text) =>
+              handleChange("confirmPassword", text)
+            }
           />
         </View>
 
         {/* SIGN UP BUTTON */}
         <Pressable
-          onPress={() => router.replace("/verify")}
+          onPress={onHandleSignUp}
           style={({ pressed }) => [
             styles.loginButton,
             {
@@ -129,7 +171,7 @@ export default function SignupScreen() {
         </View>
 
         {/* SOCIAL */}
-        <Pressable
+        {/* <Pressable
           style={({ pressed }) => [
             styles.socialButton,
             pressed && { opacity: 0.7 },
@@ -161,7 +203,7 @@ export default function SignupScreen() {
               Continue with Facebook
             </AppText>
           </View>
-        </Pressable>
+        </Pressable> */}
 
         {/* LOGIN LINK */}
         <View style={styles.registerRow}>

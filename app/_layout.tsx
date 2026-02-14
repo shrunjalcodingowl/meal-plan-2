@@ -8,6 +8,10 @@ import Colors from "@/constants/colors";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from "expo-router";
+import store from '../Redux/Store';
+import { Provider } from 'react-redux';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -24,6 +28,21 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsLoaded) {
       SplashScreen.hideAsync();
+
+      const loaded = async () => {
+        const value = await AsyncStorage.getItem("isFirstTime");
+        const isLogin = await AsyncStorage.getItem("isLogin");
+        if (value !== null || value === false) {
+          if (isLogin) {
+            router.replace("/(tabs)");
+          } else {
+            router.replace("/welcome");
+          }
+        } else {
+          await AsyncStorage.setItem("isFirstTime", JSON.stringify(false));
+        }
+      }
+      loaded()
     }
   }, [fontsLoaded]);
 
@@ -32,32 +51,34 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <Stack
-        screenOptions={{
-          headerShown: false,
+    <Provider store={store}>
+      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
 
-          animation: "fade",
-          animationDuration: 100,
+            animation: "fade",
+            animationDuration: 100,
 
-          contentStyle: {
-            backgroundColor: Colors.bg,
-          },
+            contentStyle: {
+              backgroundColor: Colors.bg,
+            },
 
-          gestureEnabled: true,
-        }}
-      >
-        {/* Entry / Auth */}
-        <Stack.Screen name="index" />
+            gestureEnabled: true,
+          }}
+        >
+          {/* Entry / Auth */}
+          <Stack.Screen name="index" />
 
-        {/* Tabs */}
-        <Stack.Screen name="(tabs)" />
+          {/* Tabs */}
+          <Stack.Screen name="(tabs)" />
 
-        {/* Other screens automatically fade */}
-        <Stack.Screen name="modal" options={{ presentation: "modal" }} />
-      </Stack>
+          {/* Other screens automatically fade */}
+          <Stack.Screen name="modal" options={{ presentation: "modal" }} />
+        </Stack>
 
-      <StatusBar style="dark" />
-    </ThemeProvider>
+        <StatusBar style="dark" />
+      </ThemeProvider>
+    </Provider>
   );
 }

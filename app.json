@@ -1,6 +1,6 @@
 {
   "expo": {
-    "owner": "shrunjal.mehta88",
+    "owner": "shrunjal.codingowl",
     "name": "Evergreen",
     "slug": "meal-plan-2",
     "version": "1.0.0",
@@ -12,7 +12,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.enbatholdings.mealplan",
-      "buildNumber": "1.0.0"
+      "buildNumber": "1.0.0",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -50,7 +53,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "29abb170-024e-4cb9-a396-2f11983698f9"
+        "projectId": "dca9c759-b566-4d3f-96b2-5d9847041eb3"
       }
     }
   }

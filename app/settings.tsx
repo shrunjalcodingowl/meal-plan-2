@@ -29,7 +29,7 @@ const ICONS = {
 
 /* ---------------- DATA ---------------- */
 
-type ActionType = "orders" | "logout" | undefined;
+type ActionType = "orders" | "editProfile" | "logout" | "myAccount" | "address" | undefined;
 
 const SETTINGS: {
   label: string;
@@ -38,11 +38,11 @@ const SETTINGS: {
 }[] = [
   { label: "Help & Support", icon: ICONS.help },
   { label: "My Orders", icon: ICONS.orders, action: "orders" },
-  { label: "Edit Profile", icon: ICONS.editProfile },
-  { label: "Saved Addresses", icon: ICONS.address },
-  { label: "Invitations", icon: ICONS.invitation },
+  { label: "Edit Profile", icon: ICONS.editProfile, action: "editProfile"},
+  { label: "My Addresses", icon: ICONS.address, action: "address" },
+  { label: "Follow US", icon: ICONS.invitation },
   { label: "Rate Us", icon: ICONS.rate },
-  { label: "My Account", icon: ICONS.account },
+  { label: "About", icon: ICONS.account, action: "myAccount" },
   { label: "Terms & Conditions", icon: ICONS.terms },
   { label: "Privacy Policy", icon: ICONS.privacy },
   { label: "Delete Account", icon: ICONS.delete },
@@ -72,6 +72,20 @@ export default function SettingsScreen() {
 
     if (action === "orders") {
       router.push("/my-orders");
+      return;
+    }
+    if(action === "editProfile"){
+      router.push("/editProfile")
+      return;
+    }
+    
+    if(action === "myAccount"){
+      router.push("/myAccount")
+      return;
+    }
+    
+    if(action === "address"){
+      router.push("/addressList")
       return;
     }
 

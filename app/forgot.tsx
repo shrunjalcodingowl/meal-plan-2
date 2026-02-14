@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from "expo-router";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import {
     BackHandler,
     Image,
@@ -12,8 +12,11 @@ import {
 
 import AppText from "@/components/AppText";
 import Colors from "@/constants/colors";
+import axios from "axios";
+import { API_CONSTANTS } from "@/constants/apiConstants";
 
 export default function ForgotPasswordScreen() {
+  const [Email, setEmail ] = useState("superadm0111@rumbl.app")
   /* Handle Android hardware back */
   useFocusEffect(
     useCallback(() => {
@@ -30,6 +33,22 @@ export default function ForgotPasswordScreen() {
       return () => subscription.remove();
     }, [])
   );
+
+  const onHandleSubmit = async () => {
+    try {
+      const params = {
+        email: Email
+      }
+
+      const response = await axios.post(API_CONSTANTS.forgotPassword, params)
+      const { data, status } = response || {}
+      if (status == 200) {
+        router.replace({pathname: "/verify", params: {email: Email, isForgot: true}})
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -82,6 +101,7 @@ export default function ForgotPasswordScreen() {
               placeholder="Type your email"
               placeholderTextColor="#E9B1A0"
               style={styles.input}
+              onChangeText={setEmail}
             />
           </View>
 
@@ -94,6 +114,7 @@ export default function ForgotPasswordScreen() {
                 transform: [{ scale: pressed ? 0.97 : 1 }],
               },
             ]}
+            onPress={onHandleSubmit}
           >
             <AppText variant="medium" style={styles.submitText}>
               Submit

@@ -1,17 +1,25 @@
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-    BackHandler,
-    Image,
-    ImageBackground,
-    Pressable,
-    StyleSheet,
-    TextInput,
-    View,
+  Alert,
+  BackHandler,
+  Image,
+  ImageBackground,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 
 import AppText from "@/components/AppText";
 import Colors from "@/constants/colors";
+import { useDispatch } from "react-redux";
+import { userDetail, userToken } from "@/Redux/Actions/UserAction";
+import axios from "axios";
+import { API_CONSTANTS } from "@/constants/apiConstants";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Toast from 'react-native-toast-message';
 
 const OTP_LENGTH = 5;
 const RESEND_SECONDS = 60;
@@ -19,8 +27,77 @@ const RESEND_SECONDS = 60;
 export default function VerifyOtpScreen() {
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [timer, setTimer] = useState(RESEND_SECONDS);
-
+  const dispatch = useDispatch()
+  const params = useLocalSearchParams();
+  // Destructure specific parameters, providing default values if needed
+  const { email, isForgot } = params;
   const inputsRef = useRef<Array<TextInput | null>>([]);
+
+  const toastConfig = {
+  success: ({ text1, text2 }) => (
+    <View style={{
+      width: '90%',
+      backgroundColor: '#1E293B',
+      padding: 16,
+      borderRadius: 12,
+      borderLeftWidth: 5,
+      borderLeftColor: '#22C55E',
+      shadowColor: '#000',
+      shadowOpacity: 0.2,
+      shadowRadius: 5,
+      elevation: 5,
+    }}>
+      <Text style={{
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600'
+      }}>
+        {text1}
+      </Text>
+      {text2 && (
+        <Text style={{
+          color: '#CBD5E1',
+          marginTop: 4,
+          fontSize: 14
+        }}>
+          {text2}
+        </Text>
+      )}
+    </View>
+  ),
+
+  error: ({ text1, text2 }) => (
+    <View style={{
+      width: '90%',
+      backgroundColor: '#1E293B',
+      padding: 16,
+      borderRadius: 12,
+      borderLeftWidth: 5,
+      borderLeftColor: '#EF4444',
+      shadowColor: '#000',
+      shadowOpacity: 0.2,
+      shadowRadius: 5,
+      elevation: 5,
+    }}>
+      <Text style={{
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600'
+      }}>
+        {text1}
+      </Text>
+      {text2 && (
+        <Text style={{
+          color: '#CBD5E1',
+          marginTop: 4,
+          fontSize: 14
+        }}>
+          {text2}
+        </Text>
+      )}
+    </View>
+  ),
+};
 
   /* Android back → forgot */
   useFocusEffect(
@@ -69,15 +146,65 @@ export default function VerifyOtpScreen() {
     }
   };
 
-  const resendOtp = () => {
+  const resendOtp = async () => {
     if (timer > 0) return;
-    setOtp(Array(OTP_LENGTH).fill(""));
-    setTimer(RESEND_SECONDS);
-    inputsRef.current[0]?.focus();
+
+    try {
+      const params = {
+        email: email
+      }
+
+      const response = await axios.post(API_CONSTANTS.resendOtp, params)
+      console.log(JSON.stringify(response))
+      const { status, data } = response || {};
+      const { message } = data || {};
+      if (status === 200) {
+        Toast.show({
+          type:'success',
+          text1:"success",
+          text2: "done",
+          position:'bottom',
+          visibilityTime: 2000
+        })
+        setTimer(RESEND_SECONDS);
+      }
+    } catch (error) {
+
+    }
+
   };
 
+  const handleSubmit = async () => {
+    if (otp.filter(_item => _item !== "").length !== 5) {
+      return;
+    }
+    const params = {
+      email: email,
+      otp: otp.join("")
+    }
+    try {
+      const response = await axios.post(API_CONSTANTS.verifyOtp, params)
+      const { data, status } = response || {}
+      const { data: mdata, token } = data || {}
+      if (status === 200) {
+        if(isForgot){
+          router.push({pathname: "/updatePassword", params:{isForgot: isForgot, token: token, data: mdata}} )
+        }else{
+        dispatch(userToken(token))
+        dispatch(userDetail(mdata))
+        await AsyncStorage.setItem("token", JSON.stringify(token))
+        await AsyncStorage.setItem("isLogin", JSON.stringify(true));
+        router.replace("/(tabs)")
+        }
+      }
+    } catch (error) {
+      Alert.alert("Something went wrong")
+    }
+
+  }
   return (
     <View style={styles.container}>
+      <Toast config={toastConfig} />
       {/* HEADER */}
       <ImageBackground
         source={require("../assets/images/header-bg.png")}
@@ -118,7 +245,7 @@ export default function VerifyOtpScreen() {
             {otp.map((digit, index) => (
               <TextInput
                 key={index}
-                ref={(ref) => {inputsRef.current[index] = ref;}}
+                ref={(ref) => { inputsRef.current[index] = ref; }}
                 value={digit}
                 onChangeText={(v) => handleChange(v, index)}
                 onKeyPress={({ nativeEvent }) =>
@@ -161,7 +288,7 @@ export default function VerifyOtpScreen() {
                 transform: [{ scale: pressed ? 0.97 : 1 }],
               },
             ]}
-            onPress={() => router.replace("/(tabs)")}
+            onPress={handleSubmit}
           >
             <AppText variant="medium" style={styles.confirmText}>
               Confirm

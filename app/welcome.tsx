@@ -28,7 +28,7 @@ export default function WelcomeScreen() {
         <View style={styles.actions}>
           {/* Log In */}
           <Pressable
-            // onPress={() => router.push("/login")}
+            onPress={() => router.push("/login")}
             style={({ pressed }) => [
               styles.primaryButton,
               {
@@ -44,7 +44,7 @@ export default function WelcomeScreen() {
 
           {/* Sign Up */}
           <Pressable
-            // onPress={() => router.push("/signup")}
+            onPress={() => router.push("/signup")}
             style={({ pressed }) => [
               styles.secondaryButton,
               {
@@ -62,7 +62,7 @@ export default function WelcomeScreen() {
           <View style={styles.socialSpacer} />
 
           {/* Google */}
-          <Pressable
+          {/* <Pressable
             style={({ pressed }) => [
               styles.socialButton,
               pressed && { opacity: 0.7 },
@@ -77,10 +77,10 @@ export default function WelcomeScreen() {
                 Continue with Google
               </AppText>
             </View>
-          </Pressable>
+          </Pressable> */}
 
           {/* Facebook */}
-          <Pressable
+          {/* <Pressable
             style={({ pressed }) => [
               styles.socialButton,
               pressed && { opacity: 0.7 },
@@ -95,7 +95,7 @@ export default function WelcomeScreen() {
                 Continue with Facebook
               </AppText>
             </View>
-          </Pressable>
+          </Pressable> */}
         </View>
       </View>
     </ImageBackground>

@@ -1,6 +1,7 @@
 import { router, useFocusEffect } from "expo-router";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import {
+  Alert,
   BackHandler,
   Image,
   ImageBackground,
@@ -12,9 +13,16 @@ import {
 
 import AppText from "@/components/AppText";
 import Colors from "@/constants/colors";
+import axios from 'axios';
+import { API_CONSTANTS } from "@/constants/apiConstants";
 
 export default function LoginScreen() {
   /* Handle Android hardware back */
+
+  const [form, setForm] = useState({
+    email: "jay@yopmail.com",
+    password: "Admin@123"
+  })
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
@@ -30,6 +38,29 @@ export default function LoginScreen() {
       return () => subscription.remove();
     }, [])
   );
+
+  const handleChange = (key, value) => {
+    setForm({ ...form, [key]: value });
+  };
+
+  const onSubmitHandler = async () => {
+
+    try {
+      const params = {
+        "email": form.email,
+        "password": form.password
+      }
+      const response = await axios.post(API_CONSTANTS.login, params)
+      console.log(JSON.stringify(response))
+      const { data, status } = response || {}
+      if (status == 200) {
+        router.replace({pathname: "/verify", params: {email: form.email}})
+      }
+    } catch (error) {
+      console.log(error)
+      Alert.alert("something went wrong")
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -81,6 +112,9 @@ export default function LoginScreen() {
             placeholder="Type your email"
             placeholderTextColor="#E9B1A0"
             style={styles.input}
+            onChangeText={(text) =>
+              handleChange("email", text)
+            }
           />
         </View>
 
@@ -92,6 +126,9 @@ export default function LoginScreen() {
             placeholderTextColor="#E9B1A0"
             secureTextEntry
             style={styles.input}
+            onChangeText={(text) =>
+              handleChange("password", text)
+            }
           />
         </View>
 
@@ -107,7 +144,7 @@ export default function LoginScreen() {
 
         {/* LOGIN BUTTON */}
         <Pressable
-          onPress={() => router.replace("/verify")}
+          onPress={onSubmitHandler}
           style={({ pressed }) => [
             styles.loginButton,
             {
@@ -122,14 +159,14 @@ export default function LoginScreen() {
         </Pressable>
 
         {/* OR */}
-        <View style={styles.orContainer}>
+        {/* <View style={styles.orContainer}>
           <View style={styles.orLine} />
           <AppText style={styles.orText}>OR</AppText>
           <View style={styles.orLine} />
-        </View>
+        </View> */}
 
         {/* SOCIAL */}
-        <Pressable
+        {/* <Pressable
           style={({ pressed }) => [
             styles.socialButton,
             pressed && { opacity: 0.7 },
@@ -161,7 +198,7 @@ export default function LoginScreen() {
               Continue with Facebook
             </AppText>
           </View>
-        </Pressable>
+        </Pressable> */}
 
         {/* REGISTER */}
         <View style={styles.registerRow}>
@@ -174,6 +211,17 @@ export default function LoginScreen() {
           >
             <AppText style={styles.registerLink}> Register</AppText>
           </Pressable>
+        </View>
+        <View style={styles.registerRow}>
+          <Pressable
+            onPress={() => router.replace("/(tabs)")}
+            style={({ pressed }) => pressed && { opacity: 0.6 }}
+          >
+          <AppText style={styles.registerText}>
+            Continue as a guest
+          </AppText>
+          </Pressable>
+            
         </View>
       </View>
     </View>
@@ -326,6 +374,7 @@ const styles = StyleSheet.create({
   registerText: {
     fontSize: 13,
     color: "#1B1B1B",
+    textDecorationLine:'underline'
   },
   registerLink: {
     fontSize: 13,
