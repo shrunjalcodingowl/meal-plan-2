@@ -10,8 +10,9 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from "expo-router";
-import store from '../Redux/Store';
+import { store, persistor } from '../Redux/Store';
 import { Provider } from 'react-redux';
+import { PersistGate } from "redux-persist/integration/react";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -52,33 +53,35 @@ export default function RootLayout() {
 
   return (
     <Provider store={store}>
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <Stack
-          screenOptions={{
-            headerShown: false,
+      <PersistGate loading={null} persistor={persistor}>
+        <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+          <Stack
+            screenOptions={{
+              headerShown: false,
 
-            animation: "fade",
-            animationDuration: 100,
+              animation: "fade",
+              animationDuration: 100,
 
-            contentStyle: {
-              backgroundColor: Colors.bg,
-            },
+              contentStyle: {
+                backgroundColor: Colors.bg,
+              },
 
-            gestureEnabled: true,
-          }}
-        >
-          {/* Entry / Auth */}
-          <Stack.Screen name="index" />
+              gestureEnabled: true,
+            }}
+          >
+            {/* Entry / Auth */}
+            <Stack.Screen name="index" />
 
-          {/* Tabs */}
-          <Stack.Screen name="(tabs)" />
+            {/* Tabs */}
+            <Stack.Screen name="(tabs)" />
 
-          {/* Other screens automatically fade */}
-          <Stack.Screen name="modal" options={{ presentation: "modal" }} />
-        </Stack>
+            {/* Other screens automatically fade */}
+            <Stack.Screen name="modal" options={{ presentation: "modal" }} />
+          </Stack>
 
-        <StatusBar style="dark" />
-      </ThemeProvider>
+          <StatusBar style="dark" />
+        </ThemeProvider>
+      </PersistGate>
     </Provider>
   );
 }

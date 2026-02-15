@@ -1,15 +1,20 @@
 import AppText from "@/components/AppText";
 import Colors from "@/constants/colors";
+import { useDetailHooks } from "@/hooks/userHooks";
+import { userDataClear } from "@/Redux/Actions/UserAction";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import {
-    Alert,
-    Image,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    View,
+  Alert,
+  Image,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useDispatch } from "react-redux";
 
 /* ---------------- ICON MAP ---------------- */
 
@@ -29,29 +34,24 @@ const ICONS = {
 
 /* ---------------- DATA ---------------- */
 
-type ActionType = "orders" | "editProfile" | "logout" | "myAccount" | "address" | undefined;
-
-const SETTINGS: {
-  label: string;
-  icon: any;
-  action?: ActionType;
-}[] = [
-  { label: "Help & Support", icon: ICONS.help },
-  { label: "My Orders", icon: ICONS.orders, action: "orders" },
-  { label: "Edit Profile", icon: ICONS.editProfile, action: "editProfile"},
-  { label: "My Addresses", icon: ICONS.address, action: "address" },
-  { label: "Follow US", icon: ICONS.invitation },
-  { label: "Rate Us", icon: ICONS.rate },
-  { label: "About", icon: ICONS.account, action: "myAccount" },
-  { label: "Terms & Conditions", icon: ICONS.terms },
-  { label: "Privacy Policy", icon: ICONS.privacy },
-  { label: "Delete Account", icon: ICONS.delete },
-  { label: "Logout", icon: ICONS.logout, action: "logout" },
-];
-
-/* ---------------- SCREEN ---------------- */
-
 export default function SettingsScreen() {
+
+  const { isLogin } = useDetailHooks();
+  const SETTINGS = [
+    { label: "Help & Support", icon: ICONS.help, action: "support", visible: true },
+    { label: "My Orders", icon: ICONS.orders, action: "orders", visible: isLogin },
+    { label: "Profile", icon: ICONS.editProfile, action: "Profile", visible: isLogin },
+    { label: "My Addresses", icon: ICONS.address, action: "address", visible: isLogin },
+    // { label: "Follow US", icon: ICONS.invitation },
+    // { label: "Rate Us", icon: ICONS.rate },
+    // { label: "About", icon: ICONS.account, action: "myAccount" },
+    { label: "Terms & Conditions", icon: ICONS.terms, action: "condition", visible: true },
+    { label: "Privacy Policy", icon: ICONS.privacy, action: "policy", visible: true },
+    { label: "Delete Account", icon: ICONS.delete, visible: isLogin },
+    { label: "Logout", icon: ICONS.logout, action: "logout", visible: isLogin },
+  ];
+  const dispatch = useDispatch()
+  
   const handleLogout = () => {
     Alert.alert(
       "Logout",
@@ -60,32 +60,58 @@ export default function SettingsScreen() {
         { text: "No", style: "cancel" },
         {
           text: "Yes",
-          onPress: () => router.replace("/welcome"),
+          onPress: async () => {
+            await AsyncStorage.clear()
+            dispatch(userDataClear())
+            router.replace("/login")
+          },
         },
       ],
       { cancelable: true }
     );
   };
 
-  const handlePress = (action?: ActionType) => {
+  const handlePress = async (action?: ActionType) => {
     if (!action) return;
 
     if (action === "orders") {
       router.push("/my-orders");
       return;
     }
-    if(action === "editProfile"){
-      router.push("/editProfile")
+
+    if (action === "Profile") {
+      router.push("/profile")
       return;
     }
-    
-    if(action === "myAccount"){
+
+    if (action === "condition") {
+      router.push("/termsAndCondition")
+      return;
+    }
+
+    if (action === "myAccount") {
       router.push("/myAccount")
       return;
     }
-    
-    if(action === "address"){
+
+    if (action === "support") {
+      const url = "https://wa.me/+97433964245?text=Hi!%20I%20need%20support"
+      const supported = await Linking.canOpenURL(url);
+
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert("Error", "WhatsApp is not installed/Supported");
+      }
+    }
+
+    if (action === "address") {
       router.push("/addressList")
+      return;
+    }
+
+    if (action === "policy") {
+      router.push("/privacyPolicy")
       return;
     }
 
@@ -115,14 +141,14 @@ export default function SettingsScreen() {
 
         <View style={styles.list}>
           {SETTINGS.map((item, index) => (
-            <Pressable
+            item.visible && (<Pressable
               key={index}
               style={styles.row}
               onPress={() => handlePress(item.action)}
             >
               <Image source={item.icon} style={styles.rowIcon} />
               <AppText style={styles.rowText}>{item.label}</AppText>
-            </Pressable>
+            </Pressable>)
           ))}
         </View>
       </ScrollView>

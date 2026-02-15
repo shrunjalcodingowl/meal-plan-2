@@ -1,336 +1,322 @@
-import React, { useRef, useState } from "react";
+import { API_CONSTANTS } from "@/constants/apiConstants";
+import { useDetailHooks } from "@/hooks/userHooks";
+import { Ionicons } from "@expo/vector-icons";
+import axios from "axios";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useMemo, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  SafeAreaView,
-  Dimensions,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
+    View,
+    Text,
+    TextInput,
+    StyleSheet,
+    TouchableOpacity,
+    ScrollView,
+    KeyboardAvoidingView,
+    Platform,
+    Dimensions,
 } from "react-native";
-import MapView, { Marker } from "react-native-maps";
-import { Ionicons, Feather } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
+import { Dropdown } from "react-native-element-dropdown";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width, height } = Dimensions.get("window");
 
 export default function AddAddressScreen() {
-  const [region, setRegion] = useState({
-    latitude: 37.78825,
-    longitude: -122.4324,
-    latitudeDelta: 0.01,
-    longitudeDelta: 0.01,
-  });
+    const { data, isEdit } = useLocalSearchParams();
 
-  const [form, setForm] = useState({
-    address: "3235 Royal Ln. Mesa, New Jersey 34567",
-    street: "Hason Nagar",
-    postCode: "34567",
-    apartment: "345",
-    label: "Home",
-  });
-  const mapRef = useRef(null);
+    const product = JSON.parse(data);
 
-  const handleChange = (key, value) => {
-    setForm({ ...form, [key]: value });
-  };
+    const { address_line_1, address_line_2, landmark, city_id, zone_id, district_id, id } = product || {};
+    const [errors, setErrors] = useState({});
+    const [form, setForm] = useState({
+        address1: address_line_1 || "",
+        address2: address_line_2 || "",
+        landmark: landmark || "",
+        city: city_id || "",
+        zone: zone_id || "",
+        district: district_id || "",
+    });
+    const [cityList, setCityList] = useState([])
+    const [zoneList, setZoneList] = useState([])
+    const [districtList, setDistrictList] = useState([])
+    const { token } = useDetailHooks()
 
-  const handleSelectLocation = (data, details) => {
-    const location = details.geometry.location;
+    const textOnly = /^[A-Za-z\s]+$/;
 
-    const newRegion = {
-      latitude: location.lat,
-      longitude: location.lng,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
+    const validate = () => {
+        let err = {};
+
+        if (!textOnly.test(form.address1))
+            err.address1 = "Only characters allowed";
+
+        if (!textOnly.test(form.address2))
+            err.address2 = "Only characters allowed";
+
+        if (!textOnly.test(form.landmark))
+            err.landmark = "Only characters allowed";
+
+        if (!form.city) err.city = "Select city";
+        if (!form.zone) err.zone = "Select zone";
+        if (!form.district) err.district = "Select district";
+
+        setErrors(err);
+        return Object.keys(err).length === 0;
     };
 
-    setRegion(newRegion);
-    
+    const submit = async () => {
+        if (!validate()) return;
+        try {
+            const params = {
+                "address_line_1": form.address1,
+                "address_line_2": form.address2,
+                "landmark": form.landmark,
+                "city_id": form.city,
+                "zone_id": form.zone,
+                "district_id": form.district
+            }
+            if(isEdit){
+                params["id"] = id
+            }
+            const response = await axios.post(API_CONSTANTS.addAddress, params, { headers: { Authorization: `Bearer ${token}` } })
 
-    if (mapRef.current) {
-      mapRef.current.animateToRegion(newRegion, 1000);
+            const { status, data } = response || {}
+            const { data: mdata } = data || {}
+
+            if (status === 200) {
+                router.back()
+            }
+        } catch (error) {
+            console.log(error)
+        }
+
+    };
+
+    const fetchZoneList = async (id) => {
+        try {
+            const params = {
+                "city_id": id
+            }
+            const response = await axios.post(API_CONSTANTS.zonesList, params, { headers: { Authorization: `Bearer ${token}` } })
+
+            const { status, data } = response || {}
+            const { data: mdata } = data || {}
+            if (mdata.length !== 0) {
+                setZoneList(mdata.map((_item) => { return { ["label"]: _item.name, ["value"]: _item.id } }))
+            } else {
+                setZoneList([])
+            }
+        } catch (error) {
+            console.log(error)
+        }
     }
-handleChange("address", data.description);
-                handleChange("latitude", location.lat);
-                handleChange("longitude", location.lng);
-                
-    // Extract postal code & street if available
-    const components = details.address_components;
 
-    components.forEach((comp) => {
-      if (comp.types.includes("postal_code")) {
-        handleChange("postCode", comp.long_name);
-      }
-      if (comp.types.includes("route")) {
-        handleChange("street", comp.long_name);
-      }
-    });
-  };
+    const fetchDistrictList = async (id) => {
+        try {
+            const params = {
+                "zone_id": id
+            }
+            const response = await axios.post(API_CONSTANTS.districtList, params, { headers: { Authorization: `Bearer ${token}` } })
 
-  const renderLabelButton = (value) => (
-    <TouchableOpacity
-      onPress={() => handleChange("label", value)}
-      style={[
-        styles.labelButton,
-        form.label === value && styles.activeLabel,
-      ]}
-    >
-      <Text
-        style={[
-          styles.labelText,
-          form.label === value && styles.activeLabelText,
-        ]}
-      >
-        {value}
-      </Text>
-    </TouchableOpacity>
-  );
+            const { status, data } = response || {}
+            const { data: mdata } = data || {}
+            if (mdata.length !== 0) {
+                setDistrictList(mdata.map((_item) => { return { ["label"]: _item.name, ["value"]: _item.id } }))
+            } else {
+                setDistrictList([])
+            }
+        } catch (error) {
+            console.log(error)
+        }
+    }
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
-      >
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {/* Map Section */}
-          <View style={styles.mapContainer}>
-            <MapView
-              style={styles.map}
-              region={region}
-              onRegionChangeComplete={(reg) => setRegion(reg)}
-            >
-              <Marker
-                coordinate={region}
-                draggable
-                onDragEnd={(e) =>
-                  setRegion({
-                    ...region,
-                    latitude: e.nativeEvent.coordinate.latitude,
-                    longitude: e.nativeEvent.coordinate.longitude,
-                  })
-                }
-              />
-            </MapView>
+    const fetchCityList = async () => {
+        try {
+            const response = await axios.post(API_CONSTANTS.cityList, {}, { headers: { Authorization: `Bearer ${token}` } })
 
-            <TouchableOpacity style={styles.backBtn}
-            onPress={() => router.back()}
-            >
-              <Ionicons name="chevron-back" size={22} color="#fff" />
-            </TouchableOpacity>
+            const { status, data } = response || {}
+            const { data: mdata } = data || {}
+            if (mdata.length !== 0) {
+                setCityList(mdata.map((_item) => { return { ["label"]: _item.name, ["value"]: _item.id } }))
+            } else {
+                setCityList([])
+            }
+        } catch (error) {
+            console.log(error)
+        }
+    }
 
-            <View style={styles.mapHint}>
-              <Text style={styles.mapHintText}>
-                Move to edit location
-              </Text>
-            </View>
-          </View>
-
-          {/* Form Section */}
-          <View style={styles.formContainer}>
-            <Text style={styles.label}>ADDRESS</Text>
-            <View style={styles.inputRow}>
-              <Feather name="map-pin" size={18} color="#777" />
-              <GooglePlacesAutocomplete
-            placeholder="Search address"
-            fetchDetails={true}
-            debounce={300}
-            minLength={2}
-            enablePoweredByContainer={false}
-            onPress={handleSelectLocation}
-            query={{
-              key: "YOUR_GOOGLE_API_KEY",
-              language: "en",
-            }}
-            styles={{
-              textInput: styles.input,
-              listView: styles.listView,
-            }}
-          />
-              {/* <TextInput
-                style={styles.input}
-                value={form.address}
-                onChangeText={(text) => handleChange("address", text)}
-              /> */}
-            </View>
-
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.label}>STREET</Text>
-                <TextInput
-                  style={styles.inputBox}
-                  value={form.street}
-                  onChangeText={(text) =>
-                    handleChange("street", text)
-                  }
-                />
-              </View>
-
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.label}>POST CODE</Text>
-                <TextInput
-                  style={styles.inputBox}
-                  value={form.postCode}
-                  onChangeText={(text) =>
-                    handleChange("postCode", text)
-                  }
-                />
-              </View>
-            </View>
-
-            <Text style={styles.label}>APPARTMENT</Text>
+    const renderInput = (label, key) => (
+        <>
+            <Text style={styles.label}>{label}</Text>
             <TextInput
-              style={styles.inputBox}
-              value={form.apartment}
-              onChangeText={(text) =>
-                handleChange("apartment", text)
-              }
+                style={styles.input}
+                value={form[key]}
+                onChangeText={(text) => setForm({ ...form, [key]: text })}
             />
+            {errors[key] && <Text style={styles.error}>{errors[key]}</Text>}
+        </>
+    );
 
-            <Text style={styles.label}>LABEL AS</Text>
-            <View style={styles.labelRow}>
-              {renderLabelButton("Home")}
-              {renderLabelButton("Work")}
-              {renderLabelButton("Other")}
-            </View>
+    const dropdownStyle = {
+        style: styles.dropdown,
+        placeholderStyle: styles.placeholder,
+        selectedTextStyle: styles.selectedText,
+    };
 
-            <TouchableOpacity style={styles.saveBtn}>
-              <Text style={styles.saveText}>SAVE LOCATION</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
-  );
+    useState(() => {
+        fetchCityList()
+    }, [])
+
+    return (
+        <SafeAreaView style={styles.safeArea}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                style={styles.flex}
+            >
+                <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+                    <View style={styles.header}>
+                        <TouchableOpacity style={styles.backButton} onPress={() => { router.back() }}>
+                            <Ionicons name="chevron-back" size={22} color="#000" />
+                        </TouchableOpacity>
+                        <Text style={styles.headerTitle}>Add Address</Text>
+                    </View>
+
+                    {renderInput("Address Line 1", "address1")}
+                    {renderInput("Address Line 2", "address2")}
+                    {renderInput("Landmark", "landmark")}
+
+                    <Text style={styles.label}>City</Text>
+                    <Dropdown
+                        {...dropdownStyle}
+                        data={cityList}
+                        labelField="label"
+                        valueField="value"
+                        value={form.city}
+                        placeholder="Select City"
+                        onChange={(item) => {
+                            setForm({ ...form, city: item.value })
+                            fetchZoneList(item.value)
+                        }}
+                    />
+                    {errors.city && <Text style={styles.error}>{errors.city}</Text>}
+
+                    <Text style={styles.label}>Zone</Text>
+                    <Dropdown
+                        {...dropdownStyle}
+                        data={zoneList}
+                        labelField="label"
+                        valueField="value"
+                        value={form.zone}
+                        placeholder="Select Zone"
+                        onChange={(item) => {
+                            setForm({ ...form, zone: item.value })
+                            fetchDistrictList(item.value)
+                        }}
+                    />
+                    {errors.zone && <Text style={styles.error}>{errors.zone}</Text>}
+
+                    <Text style={styles.label}>District</Text>
+                    <Dropdown
+                        {...dropdownStyle}
+                        data={districtList}
+                        labelField="label"
+                        valueField="value"
+                        value={form.district}
+                        placeholder="Select District"
+                        onChange={(item) => setForm({ ...form, district: item.value })}
+                    />
+                    {errors.district && <Text style={styles.error}>{errors.district}</Text>}
+
+                    <TouchableOpacity style={styles.saveBtn} onPress={submit}>
+                        <Text style={styles.saveText}>SAVE</Text>
+                    </TouchableOpacity>
+                </ScrollView>
+
+            </KeyboardAvoidingView>
+        </SafeAreaView>
+    );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#F5F5F5",
-  },
+    safeArea: {
+        flex: 1,
+        backgroundColor: "#F5F5F5",
+    },
+    flex: {
+        flex: 1,
+    },
+    container: {
+        flex: 1,
+        backgroundColor: "#f4f4f4",
+        padding: 20,
+    },
 
-  mapContainer: {
-    height: height * 0.38,
-  },
+    title: {
+        fontSize: 22,
+        fontWeight: "600",
+        marginBottom: 10,
+    },
+    header: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginTop: height * 0.02,
+        marginBottom: height * 0.03,
+    },
+    backButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: "#EDEDED",
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 10,
+    },
+    headerTitle: {
+        fontSize: width * 0.05,
+        fontWeight: "600",
+    },
 
-  map: {
-    ...StyleSheet.absoluteFillObject,
-  },
+    label: {
+        marginTop: 15,
+        fontSize: 13,
+        color: "#666",
+    },
 
-  backBtn: {
-    position: "absolute",
-    top: 20,
-    left: 20,
-    backgroundColor: "#333",
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    input: {
+        backgroundColor: "#e9edf2",
+        padding: 14,
+        borderRadius: 12,
+        marginTop: 6,
+    },
 
-  mapHint: {
-    position: "absolute",
-    top: height * 0.15,
-    alignSelf: "center",
-    backgroundColor: "#333",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
+    dropdown: {
+        backgroundColor: "#e9edf2",
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        height: 50,
+        marginTop: 6,
+    },
 
-  mapHintText: {
-    color: "#fff",
-    fontSize: 12,
-  },
+    placeholder: { color: "#999" },
+    selectedText: { color: "#000" },
 
-  formContainer: {
-    paddingHorizontal: width * 0.06,
-    paddingTop: 20,
-    paddingBottom: 40,
-  },
+    error: {
+        color: "red",
+        fontSize: 12,
+        marginTop: 4,
+    },
 
-  label: {
-    fontSize: width * 0.035,
-    color: "#555",
-    marginBottom: 6,
-    marginTop: 15,
-  },
+    saveBtn: {
+        backgroundColor: "#ff6b2c",
+        padding: 18,
+        borderRadius: 14,
+        alignItems: "center",
+        marginTop: 30,
+        marginBottom: 40,
+    },
 
-  inputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#EDEFF2",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-  },
-
-  input: {
-    flex: 1,
-    paddingVertical: 14,
-    marginLeft: 8,
-    backgroundColor: "#EDEFF2",
-  },
-
-  inputBox: {
-    backgroundColor: "#EDEFF2",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-  },
-
-  row: {
-    flexDirection: "row",
-  },
-
-  labelRow: {
-    flexDirection: "row",
-    marginTop: 10,
-  },
-
-  labelButton: {
-    backgroundColor: "#EDEFF2",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    marginRight: 12,
-  },
-
-  activeLabel: {
-    backgroundColor: "#FF7A1A",
-  },
-
-  labelText: {
-    color: "#555",
-  },
-
-  activeLabelText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
-
-  saveBtn: {
-    marginTop: 30,
-    backgroundColor: "#FF7A1A",
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: "center",
-  },
-
-  saveText: {
-    color: "#fff",
-    fontSize: width * 0.045,
-    fontWeight: "600",
-    letterSpacing: 1,
-  },
-  listView: {
-    backgroundColor: "#fff",
-    zIndex: 999,
-  }
+    saveText: {
+        color: "#fff",
+        fontWeight: "bold",
+        fontSize: 16,
+    },
 });

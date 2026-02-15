@@ -15,7 +15,7 @@ import AppText from "@/components/AppText";
 import Colors from "@/constants/colors";
 import axios from 'axios';
 import { API_CONSTANTS } from "@/constants/apiConstants";
-import { TOKEN, userDetail, userToken } from "@/Redux/Actions/UserAction";
+import { isLogin, TOKEN, userDetail, userToken } from "@/Redux/Actions/UserAction";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useDispatch } from "react-redux";
 
@@ -58,14 +58,13 @@ export default function UpdatePassword() {
             if(!isForgot){
                 params["old_password"] = form.oldPassword
             }
-            console.log("Token", token, params)
-            // const response = await fetch(API_CONSTANTS.updatePassword, requestOptions);
             const response = await axios.post(API_CONSTANTS.updatePassword, params, { headers: { Authorization: "Bearer " + token } })
 
             const { data, status } = response || {}
             if (status == 200) {
                 dispatch(userToken(token))
                 dispatch(userDetail(data))
+                dispatch(isLogin(true))
                 await AsyncStorage.setItem("isLogin", JSON.stringify(true));
                 router.replace("/(tabs)")
             }

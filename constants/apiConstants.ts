@@ -12,4 +12,12 @@ export const API_CONSTANTS = {
     forgotPassword : BASE_API + "/api/mobile/auth/forgot-password",
     updatePassword : BASE_API + "/api/mobile/auth/update-password",
     getProfile : BASE_API + "/api/mobile/auth/profile",
+    saveProfile : BASE_API + "/api/mobile/auth/save-profile",
+    addressList : BASE_API + "/api/mobile/address/list",
+    cityList : BASE_API + "/api/mobile/cities",
+    zonesList : BASE_API + "/api/mobile/zones",
+    districtList : BASE_API + "/api/mobile/districts",
+    addAddress : BASE_API + "/api/mobile/address/add",
+    deleteAddress : BASE_API + "/api/mobile/address/delete",
+    defaultAddress : BASE_API + "/api/mobile/address/make-default",
 }

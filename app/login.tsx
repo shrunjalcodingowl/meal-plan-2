@@ -51,7 +51,6 @@ export default function LoginScreen() {
         "password": form.password
       }
       const response = await axios.post(API_CONSTANTS.login, params)
-      console.log(JSON.stringify(response))
       const { data, status } = response || {}
       if (status == 200) {
         router.replace({pathname: "/verify", params: {email: form.email}})

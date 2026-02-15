@@ -15,7 +15,7 @@ import {
 import AppText from "@/components/AppText";
 import Colors from "@/constants/colors";
 import { useDispatch } from "react-redux";
-import { userDetail, userToken } from "@/Redux/Actions/UserAction";
+import { isLogin, userDetail, userToken } from "@/Redux/Actions/UserAction";
 import axios from "axios";
 import { API_CONSTANTS } from "@/constants/apiConstants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -155,7 +155,7 @@ export default function VerifyOtpScreen() {
       }
 
       const response = await axios.post(API_CONSTANTS.resendOtp, params)
-      console.log(JSON.stringify(response))
+      
       const { status, data } = response || {};
       const { message } = data || {};
       if (status === 200) {
@@ -192,6 +192,7 @@ export default function VerifyOtpScreen() {
         }else{
         dispatch(userToken(token))
         dispatch(userDetail(mdata))
+        dispatch(isLogin(true))
         await AsyncStorage.setItem("token", JSON.stringify(token))
         await AsyncStorage.setItem("isLogin", JSON.stringify(true));
         router.replace("/(tabs)")
