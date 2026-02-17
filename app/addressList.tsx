@@ -15,12 +15,15 @@ import { router } from "expo-router";
 import axios from "axios";
 import { API_CONSTANTS } from "@/constants/apiConstants";
 import { useDetailHooks } from "@/hooks/userHooks";
+import { useDispatch } from "react-redux";
+import { selectedAdress } from "@/Redux/Actions/UserAction";
 
 const { width, height } = Dimensions.get("window");
 
 export default function MyAddressScreen() {
     const { token } = useDetailHooks()
     const [addresses, setAddresses] = useState([]);
+    const dispatch = useDispatch();
 
     const fetchAddressList = async () => {
         try {
@@ -29,7 +32,15 @@ export default function MyAddressScreen() {
             const { status, data } = response || {}
             const { data: mdata } = data || {}
             if (status === 200) {
-                setAddresses(mdata)
+                if (mdata.length !== 0) {
+                    setAddresses(mdata)
+                    const select_address = mdata.filter(item => item.is_default == 1);
+                    if (select_address.length !== 0) {
+                        dispatch(selectedAdress(select_address[0]))
+                    } else {
+                        dispatch(selectedAdress(mdata[0]))
+                    }
+                }
             }
         } catch (error) {
 

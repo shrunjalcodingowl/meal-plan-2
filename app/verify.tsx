@@ -214,7 +214,7 @@ export default function VerifyOtpScreen() {
       >
         <View style={styles.headerRow}>
           <Pressable
-            onPress={() => router.replace("/login")}
+            onPress={() => router.back()}
             style={({ pressed }) => [
               styles.backBtn,
               pressed && { opacity: 0.6 },

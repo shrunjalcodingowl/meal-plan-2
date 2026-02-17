@@ -2,6 +2,7 @@
 
 export const BASE_API = "https://api.egmealplan.com"
 export const IMAGE_BASE_API = "https://api.egmealplan.com/api"
+export const IMAGE_BASE_API2 = "https://api.egmealplan.com/api/uploads/"
 
 
 export const API_CONSTANTS = {
@@ -20,4 +21,13 @@ export const API_CONSTANTS = {
     addAddress : BASE_API + "/api/mobile/address/add",
     deleteAddress : BASE_API + "/api/mobile/address/delete",
     defaultAddress : BASE_API + "/api/mobile/address/make-default",
+    homeData : BASE_API + "/api/mobile/home",
+    exploreData : BASE_API + "/api/mobile/packages",
+    exploreDetails : BASE_API + "/api/mobile/packages/details",
+    wishlist : BASE_API + "/api/mobile/wishlist/list",
+    wishlistAdd : BASE_API + "/api/mobile/wishlist/toggle",
+    addToCart : BASE_API + "/api/mobile/cart/add",
+    cartList : BASE_API + "/api/mobile/cart/view",
+    removeCart : BASE_API + "/api/mobile/cart/remove",
+    paymentInit : BASE_API + "/api/mobile/payment/initiate",
 }

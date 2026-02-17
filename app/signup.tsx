@@ -23,11 +23,13 @@ export default function SignupScreen() {
     confirmPassword: "Admin@123"
   })
 
+  const [errors, setErrors] = useState({});
+
   /* Handle Android hardware back */
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
-        router.replace("/welcome");
+        router.back();
         return true;
       };
 
@@ -42,12 +44,49 @@ export default function SignupScreen() {
 
   const handleChange = (key, value) => {
     setForm({ ...form, [key]: value });
+
+    // remove error while typing
+    if (errors[key]) {
+      setErrors({ ...errors, [key]: "" });
+    }
+  };
+
+  /* ✅ VALIDATION */
+  const validateForm = () => {
+    let newErrors = {};
+
+    // Email validation
+    if (!form.email.trim()) {
+      newErrors.email = "Email is required";
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(form.email)) {
+        newErrors.email = "Enter valid email address";
+      }
+    }
+
+    // Password validation
+    if (!form.password.trim()) {
+      newErrors.password = "Password is required";
+    } else if (form.password.length < 6) {
+      newErrors.password = "Minimum 6 characters required";
+    }
+
+    // Confirm password
+    if (!form.confirmPassword.trim()) {
+      newErrors.confirmPassword = "Confirm password is required";
+    } else if (form.confirmPassword !== form.password) {
+      newErrors.confirmPassword = "Passwords do not match";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const onHandleSignUp = async () => {
-    if (form.password !== form.confirmPassword) {
-      return;
-    }
+
+    if (!validateForm()) return;
+    
     try {
       const params = {
         "email": form.email,
@@ -74,7 +113,7 @@ export default function SignupScreen() {
       >
         <View style={styles.headerRow}>
           <Pressable
-            onPress={() => router.replace("/welcome")}
+            onPress={() => router.back()}
             style={({ pressed }) => [
               styles.backBtn,
               pressed && { opacity: 0.6 },
@@ -117,6 +156,9 @@ export default function SignupScreen() {
               handleChange("email", text)
             }
           />
+          {errors.email && (
+            <AppText style={styles.errorText}>{errors.email}</AppText>
+          )}
         </View>
 
         {/* PASSWORD */}
@@ -131,6 +173,9 @@ export default function SignupScreen() {
               handleChange("password", text)
             }
           />
+          {errors.password && (
+            <AppText style={styles.errorText}>{errors.password}</AppText>
+          )}
         </View>
 
         {/* CONFIRM PASSWORD */}
@@ -145,6 +190,11 @@ export default function SignupScreen() {
               handleChange("confirmPassword", text)
             }
           />
+          {errors.confirmPassword && (
+            <AppText style={styles.errorText}>
+              {errors.confirmPassword}
+            </AppText>
+          )}
         </View>
 
         {/* SIGN UP BUTTON */}
@@ -363,4 +413,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.accent,
   },
+  errorText: {
+    color: "red",
+    fontSize: 12,
+    marginTop: 4,
+  }
 });

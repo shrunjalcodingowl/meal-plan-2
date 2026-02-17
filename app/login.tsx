@@ -23,6 +23,8 @@ export default function LoginScreen() {
     email: "jay@yopmail.com",
     password: "Admin@123"
   })
+
+  const [errors, setErrors] = useState({});
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
@@ -41,10 +43,37 @@ export default function LoginScreen() {
 
   const handleChange = (key, value) => {
     setForm({ ...form, [key]: value });
+    // remove error when user types
+    if (errors[key]) {
+      setErrors({ ...errors, [key]: "" });
+    }
+  };
+
+  /* ✅ VALIDATION FUNCTION */
+  const validateForm = () => {
+    let newErrors = {};
+
+    if (!form.email.trim()) {
+      newErrors.email = "Email is required";
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(form.email)) {
+        newErrors.email = "Enter valid email address";
+      }
+    }
+
+    if (!form.password.trim()) {
+      newErrors.password = "Password is required";
+    } else if (form.password.length < 6) {
+      newErrors.password = "Minimum 6 characters required";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const onSubmitHandler = async () => {
-
+if (!validateForm()) return;
     try {
       const params = {
         "email": form.email,
@@ -115,6 +144,9 @@ export default function LoginScreen() {
               handleChange("email", text)
             }
           />
+          {errors.email && (
+            <AppText style={styles.errorText}>{errors.email}</AppText>
+          )}
         </View>
 
         {/* PASSWORD */}
@@ -129,6 +161,9 @@ export default function LoginScreen() {
               handleChange("password", text)
             }
           />
+          {errors.password && (
+            <AppText style={styles.errorText}>{errors.password}</AppText>
+          )}
         </View>
 
         {/* FORGOT PASSWORD */}
@@ -378,5 +413,10 @@ const styles = StyleSheet.create({
   registerLink: {
     fontSize: 13,
     color: Colors.accent,
+  },
+  errorText: {
+    color: "red",
+    fontSize: 12,
+    marginTop: 4,
   },
 });

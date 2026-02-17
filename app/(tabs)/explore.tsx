@@ -1,7 +1,11 @@
 import AppText from "@/components/AppText";
+import { API_CONSTANTS, IMAGE_BASE_API2 } from "@/constants/apiConstants";
 import Colors from "@/constants/colors";
+import { useDetailHooks } from "@/hooks/userHooks";
+import { Ionicons } from "@expo/vector-icons";
+import axios from "axios";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Image,
   Pressable,
@@ -47,6 +51,74 @@ const PLANS = [
 export default function ExploreScreen() {
   const [filter, setFilter] = useState<"all" | "weekly" | "monthly">("all");
   const [search, setSearch] = useState("");
+  const [allData, setAllData] = useState([])
+  const [FilterData, setFilterData] = useState([])
+  const { token, userDetails } = useDetailHooks()
+
+
+  const onChangeWishList = async (key) => {
+    try {
+      const params = {
+        "package_id": Number(key)
+      }
+      const response = await axios.post(API_CONSTANTS.wishlistAdd, params,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // if required
+          },
+        }
+      )
+      const { data, status } = response || {}
+      const { data: mdata } = data || {}
+      
+      if (status == 200) {
+        fetchExploreData()
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  const changeFilter = (key) => {
+    setFilter(key)
+    switch (key) {
+      case "all":
+        setFilterData(allData)
+        break;
+      case "monthly":
+        setFilterData(allData.filter(item => item.type === "monthly"))
+        break;
+      case "weekly":
+        setFilterData(allData.filter(item => item.type === "weekly"))
+        break;
+
+      default:
+        setFilterData(allData)
+        break;
+    }
+  }
+  const fetchExploreData = async () => {
+    try {
+
+      const response = await axios.post(API_CONSTANTS.exploreData, {})
+      const { data, status } = response || {}
+      const { data: mdata } = data || {}
+
+      if (status == 200) {
+        if (mdata && mdata.length !== 0) {
+          setAllData(mdata)
+          setFilterData(mdata)
+        } else {
+          setAllData([])
+          setFilterData([])
+        }
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  useEffect(() => { fetchExploreData() }, [])
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -143,7 +215,7 @@ export default function ExploreScreen() {
             return (
               <Pressable
                 key={item.key}
-                onPress={() => setFilter(item.key as any)}
+                onPress={() => changeFilter(item.key as any)}
                 style={[
                   styles.chip,
                   active && styles.chipActive,
@@ -170,27 +242,33 @@ export default function ExploreScreen() {
         </AppText>
 
         {/* ---------------- PLANS ---------------- */}
-        {PLANS.map((plan) => (
+        {FilterData.map((plan) => (
           <Pressable
             key={plan.id}
-            onPress={() => router.push("/plan-details")}
+            onPress={() => router.push({ pathname: "/plan-details", params: { id: JSON.stringify(plan.id) } })}
             style={styles.planCard}
           >
-            <Image source={plan.image} style={styles.planImage} />
+            <Image source={{ uri: IMAGE_BASE_API2 + plan.image }} style={styles.planImage} />
 
             <View style={styles.planBody}>
               <AppText variant="semiBold" style={styles.planTitle}>
-                {plan.title}{" "}
-                <AppText style={styles.kcal}>{plan.kcal}</AppText>
+                {plan.name}{" "}
+                {/* <AppText style={styles.kcal}>{plan.kcal}</AppText> */}
               </AppText>
 
               <AppText style={styles.planDesc}>
-                Focused on high-protein and low-carb ingredients to jumpstart
-                your metabolism and support sustainable weight loss.
+                {plan.description}
               </AppText>
 
               <View style={styles.metaRow}>
-                <View style={styles.metaItem}>
+                <Ionicons
+                  // name={"heart-outline"}
+                  name={plan.is_wishlist == 0 ? "heart-outline" : "heart"}
+                  size={26}
+                  color={plan.is_wishlist == 0 ? "black" : "red"}
+                  onPress={() => onChangeWishList(plan.id)}
+                />
+                {/* <View style={styles.metaItem}>
                   <Image
                     source={require("../../assets/images/icons/star.png")}
                     style={styles.metaIcon}
@@ -212,11 +290,11 @@ export default function ExploreScreen() {
                     style={styles.metaIcon}
                   />
                   <AppText style={styles.metaText}>{plan.time}</AppText>
-                </View>
+                </View> */}
 
-                <Pressable style={styles.detailsBtn}>
+                {/* <Pressable style={styles.detailsBtn}>
                   <AppText style={styles.detailsText}>Details</AppText>
-                </Pressable>
+                </Pressable> */}
               </View>
             </View>
           </Pressable>

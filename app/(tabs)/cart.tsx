@@ -1,7 +1,11 @@
 import AppText from "@/components/AppText";
+import { API_CONSTANTS, IMAGE_BASE_API2 } from "@/constants/apiConstants";
 import Colors from "@/constants/colors";
+import { useDetailHooks } from "@/hooks/userHooks";
+import { Ionicons } from "@expo/vector-icons";
+import axios from "axios";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   BackHandler,
   Image,
@@ -14,22 +18,71 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function CartScreen() {
   const [qty, setQty] = useState(1);
-
+  const [packageDetail, setPackageDetail] = useState({})
+  const [addressDetail, setAddressDetail] = useState({})
+  const { token } = useDetailHooks()
   useFocusEffect(
-  useCallback(() => {
-    const onBackPress = () => {
-      router.replace("/(tabs)");
-      return true; 
-    };
+    useCallback(() => {
+      const onBackPress = () => {
+        router.replace("/(tabs)");
+        return true;
+      };
 
-    const subscription = BackHandler.addEventListener(
-      "hardwareBackPress",
-      onBackPress
-    );
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        onBackPress
+      );
 
-    return () => subscription.remove();
+      return () => subscription.remove();
+    }, [])
+  );
+
+  const fetchCartList = async () => {
+    try {
+
+      const response = await axios.post(API_CONSTANTS.cartList, {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // if required
+          },
+        }
+      )
+      const { data, status } = response || {}
+      const { data: mdata } = data || {}
+
+      if (status == 200) {
+        setAddressDetail(mdata.address || {})
+        setPackageDetail(mdata.package || {})
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  const deleteCart = async () => {
+
+    try {
+
+      const response = await axios.post(API_CONSTANTS.removeCart, {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // if required
+          },
+        }
+      )
+      const { data, status } = response || {}
+      const { data: mdata } = data || {}
+      if (status == 200) {
+        router.replace('/(tabs)')
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  useEffect(() => {
+    fetchCartList()
   }, [])
-);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -50,7 +103,7 @@ export default function CartScreen() {
             <AppText style={styles.deliverTo}>DELIVER TO</AppText>
             <View style={styles.locationRow}>
               <AppText variant="medium" style={styles.locationText}>
-                Home - Al Wakrah
+                Home - {addressDetail.address_line_1 || ""}
               </AppText>
               <Image
                 source={require("../../assets/images/icons/chevron-down.png")}
@@ -74,23 +127,22 @@ export default function CartScreen() {
         {/* ---------------- CART ITEM ---------------- */}
         <View style={styles.card}>
           <Image
-            source={require("../../assets/images/plan-1-1.png")}
+            source={{ uri: IMAGE_BASE_API2 + packageDetail.image_path }}
             style={styles.cardImage}
           />
 
           <View style={styles.cardBody}>
             <View style={styles.planTitleRow}>
               <AppText variant="semiBold" style={styles.planTitle}>
-                Clean & Lean{" "}
-                <AppText style={styles.kcal}>1200Kcal</AppText>
+                {packageDetail.name}
+                {/* <AppText style={styles.kcal}>1200Kcal</AppText> */}
               </AppText>
 
               <AppText style={styles.period}>QR / Monthly</AppText>
             </View>
 
             <AppText style={styles.desc}>
-              Focused On High-Protein And Low-Carb Ingredients To Jumpstart Your
-              Metabolism And Support A Sustainable, Healthy Weight Loss Journey.
+              {packageDetail.description}
             </AppText>
 
             <View style={styles.metaRow}>
@@ -101,13 +153,13 @@ export default function CartScreen() {
                 />
                 <AppText style={styles.metaText}>Free</AppText>
               </View>
+              <View style={{flexDirection:'row'}}>
+                <AppText variant="semiBold" style={styles.price}>
+                  {packageDetail.price} QAR
+                </AppText>
 
-              <AppText variant="semiBold" style={styles.price}>
-                2499.0 QAR
-              </AppText>
-
-              {/* SAME QTY AS PLAN DETAILS */}
-              <View style={styles.qtyBox}>
+                {/* SAME QTY AS PLAN DETAILS */}
+                {/* <View style={styles.qtyBox}>
                 <Pressable
                   onPress={() => setQty((q) => Math.max(1, q - 1))}
                   style={styles.qtyBtn}
@@ -123,6 +175,8 @@ export default function CartScreen() {
                 >
                   <AppText style={styles.qtyBtnText}>+</AppText>
                 </Pressable>
+              </View> */}
+                <Ionicons name="trash-outline" size={22} style={{marginLeft:20}} color="#FF3B30" onPress={deleteCart}/>
               </View>
             </View>
           </View>
@@ -132,12 +186,12 @@ export default function CartScreen() {
         <View style={styles.summaryBox}>
           <View style={styles.addressHeader}>
             <AppText style={styles.addressTitle}>DELIVERY ADDRESS</AppText>
-            <AppText style={styles.editText}>EDIT</AppText>
+            {/* <AppText style={styles.editText}>EDIT</AppText> */}
           </View>
 
           <View style={styles.addressBox}>
             <AppText style={styles.addressText}>
-              Villa No- 13, Al - Al Wakrah
+              {addressDetail.address_line_1 + ", " + addressDetail.address_line_2}
             </AppText>
           </View>
 
@@ -146,13 +200,13 @@ export default function CartScreen() {
 
             <View style={styles.totalRight}>
               <AppText variant="semiBold" style={styles.totalPrice}>
-                4998.0 QAR
+                {packageDetail.price} QAR
               </AppText>
               <AppText style={styles.breakdown}>Breakdown ›</AppText>
             </View>
           </View>
 
-          <Pressable style={styles.payBtn}>
+          <Pressable style={styles.payBtn} onPress={()=>router.push({pathname : '/payment', params: {price: packageDetail.price}})}>
             <AppText variant="medium" style={styles.payText}>
               PROCEED TO PAY
             </AppText>

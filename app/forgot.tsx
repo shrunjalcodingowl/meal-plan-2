@@ -17,11 +17,12 @@ import { API_CONSTANTS } from "@/constants/apiConstants";
 
 export default function ForgotPasswordScreen() {
   const [Email, setEmail ] = useState("superadm0111@rumbl.app")
+  const [errors, setErrors] = useState({});
   /* Handle Android hardware back */
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
-        router.replace("/login");
+        router.back();
         return true;
       };
 
@@ -33,8 +34,24 @@ export default function ForgotPasswordScreen() {
       return () => subscription.remove();
     }, [])
   );
+  /* ✅ VALIDATION */
+  const validateForm = () => {
+    let newErrors = {};
+
+    if (!Email.trim()) {
+      newErrors.email = "Email is required";
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(Email)) {
+        newErrors.email = "Enter valid email address";
+      }
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const onHandleSubmit = async () => {
+    if (!validateForm()) return;
     try {
       const params = {
         email: Email
@@ -103,6 +120,9 @@ export default function ForgotPasswordScreen() {
               style={styles.input}
               onChangeText={setEmail}
             />
+            {errors.email && (
+                        <AppText style={styles.errorText}>{errors.email}</AppText>
+                      )}
           </View>
 
           {/* SUBMIT BUTTON */}
@@ -213,5 +233,10 @@ const styles = StyleSheet.create({
   submitText: {
     fontSize: 16,
     color: "#1B1B1B",
+  },
+  errorText: {
+    color: "red",
+    fontSize: 12,
+    marginTop: 4,
   },
 });

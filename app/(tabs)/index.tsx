@@ -1,7 +1,10 @@
 import AppText from "@/components/AppText";
+import { API_CONSTANTS, IMAGE_BASE_API, IMAGE_BASE_API2 } from "@/constants/apiConstants";
 import Colors from "@/constants/colors";
+import { useDetailHooks } from "@/hooks/userHooks";
+import axios from "axios";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   FlatList,
   Image,
@@ -49,6 +52,34 @@ const PRODUCTS = Array.from({ length: 5 }).map((_, i) => ({
 
 export default function HomeScreen() {
   const [search, setSearch] = useState("");
+  const [data, setData] = useState([]);
+  const [is_cart, setCart] = useState(false)
+  const { selectedAddress } = useDetailHooks();
+
+
+  const fetchHomeData = async () => {
+    try {
+
+      const response = await axios.post(API_CONSTANTS.homeData, {})
+      const { data: mdata, status } = response || {}
+      const { packages, is_cart } = mdata || {}
+
+      if (status == 200) {
+        setCart(is_cart == 0 ? false : true)
+        if (packages && packages.length !== 0) {
+          setData(packages)
+        } else {
+          setData([])
+        }
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
+  
+  useEffect(() => {
+    fetchHomeData()
+  }, [])
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -76,7 +107,7 @@ export default function HomeScreen() {
               </AppText>
             </View>
             <AppText style={styles.addressText}>
-              Villa No 13, Oraiq Street, Al Wakrah, Doha - Qatar
+              {(selectedAddress.address_line_1 || "") + ", " + (selectedAddress.address_line_2)}
             </AppText>
           </View>
 
@@ -85,9 +116,9 @@ export default function HomeScreen() {
               source={require("../../assets/images/icons/cart.png")}
               style={styles.icon45}
             />
-            <View style={styles.badge}>
-              <AppText style={styles.badgeText}>2</AppText>
-            </View>
+            {is_cart && <View style={styles.badge}>
+              <AppText style={styles.badgeText}></AppText>
+            </View>}
           </Pressable>
         </View>
 
@@ -161,11 +192,11 @@ export default function HomeScreen() {
         <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
-          data={MEAL_PLANS}
+          data={data}
           keyExtractor={(i) => i.id}
           renderItem={({ item }) => (
             <View style={styles.planCard}>
-              <Image source={item.image} style={styles.planImg} />
+              <Image source={{ uri: IMAGE_BASE_API2 + item.image }} style={styles.planImg} />
               <AppText style={styles.planName}>{item.name}</AppText>
               <AppText style={styles.planKcal}>{item.kcal}</AppText>
             </View>
@@ -180,14 +211,14 @@ export default function HomeScreen() {
           <AppText style={styles.seeAll}>See all ›</AppText>
         </View>
 
-        {PRODUCTS.map((p) => (
+        {data.map((p) => (
           <View key={p.id} style={styles.product}>
-            <Image source={p.image} style={styles.productImg} />
+            <Image source={{ uri: IMAGE_BASE_API2 + p.image }} style={styles.productImg} />
             <View style={{ flex: 1 }}>
               <AppText variant="medium" style={styles.productName}>
                 {p.name}
               </AppText>
-              <AppText style={styles.productDesc}>{p.desc}</AppText>
+              <AppText style={styles.productDesc}>{p.description}</AppText>
               <View style={styles.productBottom}>
                 <AppText style={styles.price}>{p.price}</AppText>
                 <Pressable style={styles.buyBtn}>
@@ -306,9 +337,12 @@ const styles = StyleSheet.create({
   subtitleText: { color: Colors.textMuted2 },
   seeAll: { color: Colors.textMuted2 },
 
-  planCard: { marginRight: 12 },
+  planCard: { marginRight: 12, flexDirection: "column", width: 150 },
   planImg: { width: 140, height: 100, borderRadius: 14 },
-  planName: { marginTop: 6, color: Colors.textPrimary2 },
+  planName: {
+    marginTop: 6, color: Colors.textPrimary2, flexShrink: 1,
+    flexWrap: "wrap",
+  },
   planKcal: { color: Colors.softPink },
 
   product: {

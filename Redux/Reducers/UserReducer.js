@@ -1,10 +1,11 @@
 import { createReducer } from "@reduxjs/toolkit"
-import { isLogin, userDataClear, userDetail, userToken } from "../Actions/UserAction"
+import { isLogin, selectedAdress, userDataClear, userDetail, userToken } from "../Actions/UserAction"
 
 const InitialState = {
     userDetails: {},
     token: "",
-    isLogin: false
+    isLogin: false,
+    selectedAddress: {}
 }
 export const userReducer = createReducer(InitialState, builder => {
   builder
@@ -16,6 +17,9 @@ export const userReducer = createReducer(InitialState, builder => {
     })
     .addCase(isLogin, (state, action) => {
       state.isLogin = action.payload;         // ✅ correct
+    })
+    .addCase(selectedAdress, (state, action) => {
+      state.selectedAddress = action.payload;         // ✅ correct
     })
     .addCase(userDataClear, () => InitialState);
 

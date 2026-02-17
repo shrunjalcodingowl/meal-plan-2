@@ -1,10 +1,16 @@
 import AppText from "@/components/AppText";
+import { API_CONSTANTS, IMAGE_BASE_API2 } from "@/constants/apiConstants";
 import Colors from "@/constants/colors";
+import { useDetailHooks } from "@/hooks/userHooks";
+import axios from "axios";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
+  Dimensions,
+  FlatList,
   Image,
   Pressable,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -42,10 +48,64 @@ const PLANS = [
     image: require("../../assets/images/plan-3-1.png"),
   },
 ];
-
+const { width, height } = Dimensions.get("window");
 export default function WishlistScreen() {
   const [filter, setFilter] = useState<"all" | "weekly" | "monthly">("all");
   const [search, setSearch] = useState("");
+  const [allData, setAllData] = useState([])
+  const { token, userDetails } = useDetailHooks()
+
+  const onChangeWishList = async (key) => {
+    try {
+      const params = {
+        "package_id": Number(key)
+      }
+      const response = await axios.post(API_CONSTANTS.wishlistAdd, params,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // if required
+          },
+        }
+      )
+      const { data, status } = response || {}
+      const { data: mdata } = data || {}
+
+      if (status == 200) {
+        fetchWishList()
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  const fetchWishList = async () => {
+    try {
+
+      const response = await axios.post(API_CONSTANTS.wishlist, {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // if required
+          },
+        }
+      )
+      const { data, status } = response || {}
+      const { data: mdata } = data || {}
+      
+      if (status == 200) {
+        if (mdata && mdata.length !== 0) {
+          setAllData(mdata)
+        } else {
+          setAllData([])
+        }
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  useState(() => {
+    fetchWishList()
+  }, [])
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -53,6 +113,7 @@ export default function WishlistScreen() {
         style={styles.container}
         contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
+        scrollEnabled={false}
       >
         {/* ---------------- HEADER ---------------- */}
         <View style={styles.header}>
@@ -97,27 +158,29 @@ export default function WishlistScreen() {
         </View>
 
         {/* ---------------- PLANS ---------------- */}
-        {PLANS.map((plan) => (
-          <Pressable
-            key={plan.id}
-            onPress={() => router.push("/plan-details")}
-            style={styles.planCard}
-          >
-            <Image source={plan.image} style={styles.planImage} />
+        <FlatList
+          data={allData}
+          keyExtractor={(plan) => plan?.id}
+          renderItem={({ item }) => (
+            <Pressable
+              key={item.id}
+              onPress={() => router.push("/plan-details")}
+              style={styles.planCard}
+            >
+              <Image source={{ uri: IMAGE_BASE_API2 + item.image_path }} style={styles.planImage} />
 
-            <View style={styles.planBody}>
-              <AppText variant="semiBold" style={styles.planTitle}>
-                {plan.title}{" "}
-                <AppText style={styles.kcal}>{plan.kcal}</AppText>
-              </AppText>
+              <View style={styles.planBody}>
+                <AppText variant="semiBold" style={styles.planTitle}>
+                  {item.name}{" "}
+                  {/* <AppText style={styles.kcal}>{plan.kcal}</AppText> */}
+                </AppText>
 
-              <AppText style={styles.planDesc}>
-                Focused on high-protein and low-carb ingredients to jumpstart
-                your metabolism and support sustainable weight loss.
-              </AppText>
+                <AppText style={styles.planDesc}>
+                  {item.description}
+                </AppText>
 
-              <View style={styles.metaRow}>
-                <View style={styles.metaItem}>
+                <View style={styles.metaRow}>
+                  {/* <View style={styles.metaItem}>
                   <Image
                     source={require("../../assets/images/icons/star.png")}
                     style={styles.metaIcon}
@@ -139,15 +202,21 @@ export default function WishlistScreen() {
                     style={styles.metaIcon}
                   />
                   <AppText style={styles.metaText}>{plan.time}</AppText>
-                </View>
+                </View> */}
 
-                <Pressable style={styles.detailsBtn}>
-                  <AppText style={styles.detailsText}>Remove</AppText>
-                </Pressable>
+                  <Pressable style={styles.detailsBtn} onPress={() => onChangeWishList(item?.id)}>
+                    <AppText style={styles.detailsText}>Remove</AppText>
+                  </Pressable>
+                </View>
               </View>
-            </View>
-          </Pressable>
-        ))}
+            </Pressable>
+          )}
+          contentContainerStyle={{ paddingBottom: height * 0.15 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={false} onRefresh={fetchWishList} />
+          }
+        />
       </ScrollView>
     </SafeAreaView>
   );

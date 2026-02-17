@@ -1,7 +1,11 @@
 import AppText from "@/components/AppText";
+import { API_CONSTANTS, IMAGE_BASE_API2 } from "@/constants/apiConstants";
 import Colors from "@/constants/colors";
+import { useDetailHooks } from "@/hooks/userHooks";
+import axios from "axios";
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useLocalSearchParams } from "expo-router/build/hooks";
+import { useEffect, useMemo, useState } from "react";
 import {
   Image,
   Pressable,
@@ -30,7 +34,10 @@ const minDateStr = [
 export default function PlanDetailsScreen() {
   const [qty, setQty] = useState(1);
   const [selectedDate, setSelectedDate] = useState<string | undefined>();
-
+  const [packageData, setPackageData] = useState<object | undefined>({});
+  const { token, selectedAddress } = useDetailHooks()
+  const params = useLocalSearchParams()
+  const { id } = params
   const markedDates = useMemo(() => {
     if (!selectedDate) return {};
     return {
@@ -40,6 +47,63 @@ export default function PlanDetailsScreen() {
       },
     };
   }, [selectedDate]);
+
+
+  const packagesDetail = async () => {
+    try {
+      const params = {
+        "package_id": Number(id)
+      }
+      const response = await axios.post(API_CONSTANTS.exploreDetails, params,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // if required
+          },
+        }
+      )
+      const { data, status } = response || {}
+      const { data: mdata } = data || {}
+      
+      if (status == 200) {
+        if (mdata && mdata.length !== 0) {
+          setPackageData(mdata)
+        } else {
+          setPackageData([])
+        }
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  const addToCart = async () => {
+    try {
+      const params = {
+        "package_id": packageData.id,
+        "address_id": selectedAddress.id,
+        "start_date": selectedDate
+      }
+      
+      const response = await axios.post(API_CONSTANTS.addToCart, params,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // if required
+          },
+        }
+      )
+      const { data, status } = response || {}
+      const { data: mdata } = data || {}
+      if (status == 200) {
+        router.push('/(tabs)/cart')
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  useEffect(() => {
+    packagesDetail()
+  }, [])
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -66,15 +130,15 @@ export default function PlanDetailsScreen() {
               source={require("../assets/images/icons/cart.png")}
               style={styles.headerIcon}
             />
-            <View style={styles.badge}>
-              <AppText style={styles.badgeText}>2</AppText>
-            </View>
+            {/* <View style={styles.badge}>
+              <AppText style={styles.badgeText}></AppText>
+            </View> */}
           </View>
         </View>
 
         {/* ---------------- IMAGE ---------------- */}
         <Image
-          source={require("../assets/images/plan-1-1.png")}
+          source={{ uri: IMAGE_BASE_API2 + packageData?.image }}
           style={styles.planImage}
         />
 
@@ -82,17 +146,16 @@ export default function PlanDetailsScreen() {
         <View style={styles.body}>
           {/* TITLE */}
           <AppText variant="semiBold" style={styles.planTitle}>
-            Pizza Calzone European
+            {packageData.name}
           </AppText>
 
           {/* DESCRIPTION */}
           <AppText style={styles.desc}>
-            Focused On High-Protein And Low-Carb Ingredients To Jumpstart Your
-            Metabolism And Support A Sustainable, Healthy Weight Loss Journey.
+            {packageData.description}
           </AppText>
 
           {/* META */}
-          <View style={styles.metaRow}>
+          {/* <View style={styles.metaRow}>
             <View style={styles.metaItem}>
               <Image
                 source={require("../assets/images/icons/star.png")}
@@ -116,7 +179,7 @@ export default function PlanDetailsScreen() {
               />
               <AppText style={styles.metaText}>20 min</AppText>
             </View>
-          </View>
+          </View> */}
 
           {/* ---------------- CALENDAR ---------------- */}
           <View style={styles.calendarHeader}>
@@ -126,33 +189,33 @@ export default function PlanDetailsScreen() {
           </View>
 
           <Calendar
-  minDate={minDateStr}
-  disableAllTouchEventsForDisabledDays
-  markedDates={markedDates}
-  onDayPress={(day) => {
-    // extra safety: block anything before min date
-    if (day.dateString < minDateStr) return;
-    setSelectedDate(day.dateString);
-  }}
-  theme={{
-    arrowColor: Colors.accent,
-    todayTextColor: Colors.textMuted2,
-    selectedDayBackgroundColor: Colors.softPink,
-    selectedDayTextColor: Colors.textPrimary2,
-    textDayFontSize: 14,
-    textMonthFontSize: 16,
-    textDayHeaderFontSize: 12,
-  }}
-/>
+            minDate={minDateStr}
+            disableAllTouchEventsForDisabledDays
+            markedDates={markedDates}
+            onDayPress={(day) => {
+              // extra safety: block anything before min date
+              if (day.dateString < minDateStr) return;
+              setSelectedDate(day.dateString);
+            }}
+            theme={{
+              arrowColor: Colors.accent,
+              todayTextColor: Colors.textMuted2,
+              selectedDayBackgroundColor: Colors.softPink,
+              selectedDayTextColor: Colors.textPrimary2,
+              textDayFontSize: 14,
+              textMonthFontSize: 16,
+              textDayHeaderFontSize: 12,
+            }}
+          />
 
 
           {/* ---------------- PRICE + QTY ---------------- */}
           <View style={styles.bottomRow}>
             <AppText variant="semiBold" style={styles.price}>
-              2499.0 QAR
+              {packageData.price} QAR
             </AppText>
 
-            <View style={styles.qtyBox}>
+            {/* <View style={styles.qtyBox}>
               <Pressable
                 onPress={() => setQty((q) => Math.max(1, q - 1))}
                 style={styles.qtyBtn}
@@ -168,11 +231,11 @@ export default function PlanDetailsScreen() {
               >
                 <AppText style={styles.qtyBtnText}>+</AppText>
               </Pressable>
-            </View>
+            </View> */}
           </View>
 
           {/* ---------------- ADD TO CART ---------------- */}
-          <Pressable style={styles.addBtn}>
+          <Pressable style={styles.addBtn} onPress={addToCart}>
             <AppText variant="medium" style={styles.addText}>
               ADD TO CART
             </AppText>
