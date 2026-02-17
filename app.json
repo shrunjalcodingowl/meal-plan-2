@@ -1,6 +1,6 @@
 {
   "expo": {
-    "owner": "shrunjal.codingowl",
+    "owner": "shrunjal.mehta88",
     "name": "Evergreen",
     "slug": "meal-plan-2",
     "version": "1.0.0",
@@ -11,11 +11,9 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.enbatholdings.mealplan",
-      "buildNumber": "1.0.0",
+      "bundleIdentifier": "com.enbatholdigs.mealplan",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false,
-        "NSPhotoLibraryUsageDescription": "Allow access to upload profile photo"
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -25,7 +23,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.enbatholdings.mealplan"
+      "package": "com.enbatholdigs.mealplan"
     },
     "web": {
       "output": "static",
@@ -45,8 +43,7 @@
           }
         }
       ],
-      "expo-font",
-      "@react-native-community/datetimepicker"
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -55,7 +52,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "dca9c759-b566-4d3f-96b2-5d9847041eb3"
+        "projectId": "29abb170-024e-4cb9-a396-2f11983698f9"
       }
     }
   }

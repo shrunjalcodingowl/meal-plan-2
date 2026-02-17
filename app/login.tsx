@@ -9,22 +9,34 @@ import {
   StyleSheet,
   TextInput,
   View,
+  ActivityIndicator,
 } from "react-native";
 
 import AppText from "@/components/AppText";
 import Colors from "@/constants/colors";
-import axios from 'axios';
+import axios from "axios";
 import { API_CONSTANTS } from "@/constants/apiConstants";
 
 export default function LoginScreen() {
-  /* Handle Android hardware back */
+  /* ================= STATE ================= */
 
-  const [form, setForm] = useState({
-    email: "jay@yopmail.com",
-    password: "Admin@123"
-  })
+  const [form, setForm] = useState<{
+    email: string;
+    password: string;
+  }>({
+    email: "",
+    password: "",
+  });
 
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<{
+    email?: string;
+    password?: string;
+  }>({});
+
+  const [loading, setLoading] = useState(false);
+
+  /* ================= HANDLE ANDROID BACK ================= */
+
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
@@ -41,17 +53,20 @@ export default function LoginScreen() {
     }, [])
   );
 
-  const handleChange = (key, value) => {
-    setForm({ ...form, [key]: value });
-    // remove error when user types
+  /* ================= HANDLE INPUT CHANGE ================= */
+
+  const handleChange = (key: "email" | "password", value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+
     if (errors[key]) {
-      setErrors({ ...errors, [key]: "" });
+      setErrors((prev) => ({ ...prev, [key]: "" }));
     }
   };
 
-  /* ✅ VALIDATION FUNCTION */
+  /* ================= VALIDATION ================= */
+
   const validateForm = () => {
-    let newErrors = {};
+    let newErrors: { email?: string; password?: string } = {};
 
     if (!form.email.trim()) {
       newErrors.email = "Email is required";
@@ -72,23 +87,46 @@ export default function LoginScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
+  /* ================= SUBMIT ================= */
+
   const onSubmitHandler = async () => {
-if (!validateForm()) return;
+    if (loading) return;
+
+    if (!validateForm()) return;
+
     try {
+      setLoading(true);
+
       const params = {
-        "email": form.email,
-        "password": form.password
+        email: form.email.trim(),
+        password: form.password.trim(),
+      };
+
+      const response = await axios.post(API_CONSTANTS.login, params);
+
+      const { data, status } = response;
+
+      if (status === 200) {
+        router.replace({
+          pathname: "/verify",
+          params: { email: form.email },
+        });
       }
-      const response = await axios.post(API_CONSTANTS.login, params)
-      const { data, status } = response || {}
-      if (status == 200) {
-        router.replace({pathname: "/verify", params: {email: form.email}})
-      }
-    } catch (error) {
-      console.log(error)
-      Alert.alert("something went wrong")
+    } catch (error: any) {
+      console.log("STATUS:", error?.response?.status);
+      console.log("ERROR DATA:", error?.response?.data);
+
+      const apiMessage =
+        error?.response?.data?.message || "Something went wrong. Please try again.";
+
+      Alert.alert("Login Failed", apiMessage);
     }
-  }
+    finally {
+      setLoading(false);
+    }
+  };
+
+  /* ================= UI ================= */
 
   return (
     <View style={styles.container}>
@@ -116,7 +154,6 @@ if (!validateForm()) return;
             Log In
           </AppText>
 
-          {/* Spacer to balance center alignment */}
           <View style={styles.headerRightSpacer} />
         </View>
       </ImageBackground>
@@ -136,13 +173,14 @@ if (!validateForm()) return;
         <View style={styles.inputGroup}>
           <AppText style={styles.label}>Email</AppText>
           <TextInput
+            value={form.email}
             autoFocus
             placeholder="Type your email"
             placeholderTextColor="#E9B1A0"
             style={styles.input}
-            onChangeText={(text) =>
-              handleChange("email", text)
-            }
+            keyboardType="email-address"
+            autoCapitalize="none"
+            onChangeText={(text) => handleChange("email", text)}
           />
           {errors.email && (
             <AppText style={styles.errorText}>{errors.email}</AppText>
@@ -153,20 +191,20 @@ if (!validateForm()) return;
         <View style={styles.inputGroup}>
           <AppText style={styles.label}>Password</AppText>
           <TextInput
+            value={form.password}
             placeholder="Type your password"
             placeholderTextColor="#E9B1A0"
             secureTextEntry
             style={styles.input}
-            onChangeText={(text) =>
-              handleChange("password", text)
-            }
+            autoCapitalize="none"
+            onChangeText={(text) => handleChange("password", text)}
           />
           {errors.password && (
             <AppText style={styles.errorText}>{errors.password}</AppText>
           )}
         </View>
 
-        {/* FORGOT PASSWORD */}
+        {/* FORGOT */}
         <View style={styles.forgotRow}>
           <Pressable
             onPress={() => router.push("/forgot")}
@@ -179,60 +217,23 @@ if (!validateForm()) return;
         {/* LOGIN BUTTON */}
         <Pressable
           onPress={onSubmitHandler}
+          disabled={loading}
           style={({ pressed }) => [
             styles.loginButton,
             {
-              opacity: pressed ? 0.75 : 1,
+              opacity: pressed || loading ? 0.75 : 1,
               transform: [{ scale: pressed ? 0.97 : 1 }],
             },
           ]}
         >
-          <AppText variant="medium" style={styles.loginText}>
-            Log In
-          </AppText>
-        </Pressable>
-
-        {/* OR */}
-        {/* <View style={styles.orContainer}>
-          <View style={styles.orLine} />
-          <AppText style={styles.orText}>OR</AppText>
-          <View style={styles.orLine} />
-        </View> */}
-
-        {/* SOCIAL */}
-        {/* <Pressable
-          style={({ pressed }) => [
-            styles.socialButton,
-            pressed && { opacity: 0.7 },
-          ]}
-        >
-          <View style={styles.socialContent}>
-            <Image
-              source={require("../assets/images/icons/google.png")}
-              style={styles.socialIcon}
-            />
-            <AppText style={styles.socialText}>
-              Continue with Google
+          {loading ? (
+            <ActivityIndicator color="#000" />
+          ) : (
+            <AppText variant="medium" style={styles.loginText}>
+              Log In
             </AppText>
-          </View>
+          )}
         </Pressable>
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.socialButton,
-            pressed && { opacity: 0.7 },
-          ]}
-        >
-          <View style={styles.socialContent}>
-            <Image
-              source={require("../assets/images/icons/fb.png")}
-              style={styles.socialIcon}
-            />
-            <AppText style={styles.socialText}>
-              Continue with Facebook
-            </AppText>
-          </View>
-        </Pressable> */}
 
         {/* REGISTER */}
         <View style={styles.registerRow}>
@@ -246,29 +247,29 @@ if (!validateForm()) return;
             <AppText style={styles.registerLink}> Register</AppText>
           </Pressable>
         </View>
+
         <View style={styles.registerRow}>
           <Pressable
             onPress={() => router.replace("/(tabs)")}
             style={({ pressed }) => pressed && { opacity: 0.6 }}
           >
-          <AppText style={styles.registerText}>
-            Continue as a guest
-          </AppText>
+            <AppText style={styles.registerText}>
+              Continue as a guest
+            </AppText>
           </Pressable>
-            
         </View>
       </View>
     </View>
   );
 }
 
+/* ================= STYLES ================= */
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
-
-  /* HEADER */
   header: {
     height: 110,
     justifyContent: "center",
@@ -279,45 +280,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  backBtn: {
-    padding: 8,
-  },
-  backIcon: {
-    width: 20,
-    height: 20,
-    resizeMode: "contain",
-  },
+  backBtn: { padding: 8 },
+  backIcon: { width: 20, height: 20, resizeMode: "contain" },
   headerTitle: {
     fontSize: 22,
     color: "#1B1B1B",
     textAlign: "center",
   },
-  headerRightSpacer: {
-    width: 28,
-  },
-
-  /* MAIN */
+  headerRightSpacer: { width: 28 },
   main: {
     flex: 1,
     paddingHorizontal: 24,
     backgroundColor: "#FFFFFF",
   },
-
-  /* LOGO */
   logoContainer: {
     alignItems: "center",
     marginTop: 24,
     marginBottom: 20,
   },
-  logo: {
-    width: 180,
-    height: 48,
-  },
-
-  /* INPUTS */
-  inputGroup: {
-    marginBottom: 18,
-  },
+  logo: { width: 180, height: 48 },
+  inputGroup: { marginBottom: 18 },
   label: {
     fontSize: 14,
     color: Colors.accent,
@@ -333,8 +315,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#F1E6E2",
   },
-
-  /* FORGOT */
   forgotRow: {
     alignItems: "flex-end",
     marginBottom: 22,
@@ -343,8 +323,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.accent,
   },
-
-  /* LOGIN BUTTON */
   loginButton: {
     backgroundColor: Colors.accent,
     height: 48,
@@ -357,49 +335,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#1B1B1B",
   },
-
-  /* OR */
-  orContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 22,
-  },
-  orLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#E5E5E5",
-  },
-  orText: {
-    marginHorizontal: 12,
-    fontSize: 12,
-    color: "#8E8E8E",
-  },
-
-  /* SOCIAL */
-  socialButton: {
-    borderWidth: 1,
-    borderColor: "#E5E5E5",
-    borderRadius: 999,
-    height: 48,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 14,
-  },
-  socialContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  socialIcon: {
-    width: 20,
-    height: 20,
-    marginRight: 12,
-  },
-  socialText: {
-    fontSize: 14,
-    color: "#1B1B1B",
-  },
-
-  /* REGISTER */
   registerRow: {
     flexDirection: "row",
     justifyContent: "center",
@@ -408,7 +343,7 @@ const styles = StyleSheet.create({
   registerText: {
     fontSize: 13,
     color: "#1B1B1B",
-    textDecorationLine:'underline'
+    textDecorationLine: "underline",
   },
   registerLink: {
     fontSize: 13,

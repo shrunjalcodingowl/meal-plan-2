@@ -30,4 +30,5 @@ export const API_CONSTANTS = {
     cartList : BASE_API + "/api/mobile/cart/view",
     removeCart : BASE_API + "/api/mobile/cart/remove",
     paymentInit : BASE_API + "/api/mobile/payment/initiate",
+    deleteUser: BASE_API + "/api/mobile/auth/delete-user",
 }

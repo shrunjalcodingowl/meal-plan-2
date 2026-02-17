@@ -1,10 +1,13 @@
 import AppText from "@/components/AppText";
-import { API_CONSTANTS, IMAGE_BASE_API, IMAGE_BASE_API2 } from "@/constants/apiConstants";
+import {
+  API_CONSTANTS,
+  IMAGE_BASE_API2,
+} from "@/constants/apiConstants";
 import Colors from "@/constants/colors";
 import { useDetailHooks } from "@/hooks/userHooks";
 import axios from "axios";
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import {
   FlatList,
   Image,
@@ -16,70 +19,74 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-/* ---------------- DATA ---------------- */
-
-const MEAL_PLANS = [
-  {
-    id: "1",
-    name: "Clean & Lean",
-    kcal: "1200 Kcal",
-    image: require("../../assets/images/plan-1.png"),
-  },
-  {
-    id: "2",
-    name: "Pure Nourish",
-    kcal: "1800 Kcal",
-    image: require("../../assets/images/plan-2.png"),
-  },
-  {
-    id: "3",
-    name: "Athletic Pro",
-    kcal: "1500 Kcal",
-    image: require("../../assets/images/plan-3.png"),
-  },
-];
-
-const PRODUCTS = Array.from({ length: 5 }).map((_, i) => ({
-  id: `${i}`,
-  name: "Detox + Glow 1-Day Kit",
-  price: "QAR 478",
-  desc:
-    "A concentrated one-day program combining detoxifying internal juices with external skin treatments.",
-  image: require("../../assets/images/product-1.png"),
-}));
-
 /* ---------------- SCREEN ---------------- */
 
 export default function HomeScreen() {
   const [search, setSearch] = useState("");
-  const [data, setData] = useState([]);
-  const [is_cart, setCart] = useState(false)
-  const { selectedAddress } = useDetailHooks();
+  const [data, setData] = useState<any[]>([]);
+  const [is_cart, setCart] = useState(false);
+  const [defaultAddress, setDefaultAddress] = useState<string>("");
 
+  const { token } = useDetailHooks();
+
+  /* ================= FETCH HOME ================= */
 
   const fetchHomeData = async () => {
     try {
+      const response = await axios.post(API_CONSTANTS.homeData, {});
+      const { data: mdata, status } = response || {};
+      const { packages, is_cart } = mdata || {};
 
-      const response = await axios.post(API_CONSTANTS.homeData, {})
-      const { data: mdata, status } = response || {}
-      const { packages, is_cart } = mdata || {}
-
-      if (status == 200) {
-        setCart(is_cart == 0 ? false : true)
-        if (packages && packages.length !== 0) {
-          setData(packages)
-        } else {
-          setData([])
-        }
+      if (status === 200) {
+        setCart(is_cart === 0 ? false : true);
+        setData(packages || []);
       }
-    } catch (error) {
-      console.log(error)
+    } catch (error: any) {
+      console.log("HOME ERROR:", error?.response?.data);
     }
-  }
-  
-  useEffect(() => {
-    fetchHomeData()
-  }, [])
+  };
+
+  /* ================= FETCH ADDRESS ================= */
+
+  const fetchAddress = async () => {
+    try {
+      const response = await axios.post(
+        "https://api.egmealplan.com/api/mobile/address/list",
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const { data } = response || {};
+      const addressList = data?.data || [];
+
+      const defaultAddr = addressList.find(
+        (addr: any) => addr.is_default === 1
+      );
+
+      if (defaultAddr) {
+        setDefaultAddress(defaultAddr.address_line_1);
+      }
+    } catch (error: any) {
+      console.log("ADDRESS ERROR:", error?.response?.data);
+    }
+  };
+
+  /* ================= REFRESH ON TAB FOCUS ================= */
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchHomeData();
+      if (token) {
+        fetchAddress();
+      }
+    }, [token])
+  );
+
+  /* ================= UI ================= */
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -103,26 +110,30 @@ export default function HomeScreen() {
                 style={styles.icon15}
               />
               <AppText variant="semiBold" style={styles.homeText}>
-                Home
+                Location
               </AppText>
             </View>
+
             <AppText style={styles.addressText}>
-              {(selectedAddress.address_line_1 || "") + ", " + (selectedAddress.address_line_2)}
+              {defaultAddress || "Select Address"}
             </AppText>
           </View>
 
-          <Pressable onPress={() => router.push("/cart")}>
+          <Pressable onPress={() => router.push("/(tabs)/cart")}>
             <Image
               source={require("../../assets/images/icons/cart.png")}
               style={styles.icon45}
             />
-            {is_cart && <View style={styles.badge}>
-              <AppText style={styles.badgeText}></AppText>
-            </View>}
+            {is_cart && (
+              <View style={styles.badge}>
+                <AppText style={styles.badgeText}></AppText>
+              </View>
+            )}
           </Pressable>
         </View>
 
-        {/* SEARCH */}
+        {/* SEARCH (COMMENTED AS REQUESTED) */}
+        {/*
         <View style={styles.search}>
           <Image
             source={require("../../assets/images/icons/search.png")}
@@ -135,17 +146,11 @@ export default function HomeScreen() {
             placeholderTextColor={Colors.textMuted2}
             style={styles.searchInput}
           />
-          {search.length > 0 && (
-            <Pressable onPress={() => setSearch("")}>
-              <Image
-                source={require("../../assets/images/icons/close.png")}
-                style={styles.icon20}
-              />
-            </Pressable>
-          )}
         </View>
+        */}
 
-        {/* CHIPS */}
+        {/* CHIPS (COMMENTED AS REQUESTED) */}
+        {/*
         <View style={styles.chips}>
           <View style={[styles.chip, styles.chipActive]}>
             <AppText style={styles.chipActiveText}>Meal Plan</AppText>
@@ -154,6 +159,7 @@ export default function HomeScreen() {
             <AppText style={styles.chipText}>Shop</AppText>
           </View>
         </View>
+        */}
 
         {/* BANNER */}
         <View style={styles.banner}>
@@ -161,19 +167,6 @@ export default function HomeScreen() {
             source={require("../../assets/images/banner-1.png")}
             style={styles.bannerImg}
           />
-          <View style={styles.bannerOverlay}>
-            <AppText variant="bold" style={styles.bannerTitle}>
-              Special Offer for Veganuary
-            </AppText>
-            <AppText style={styles.bannerDesc}>
-              We are here with the Best Vegan Food in town.
-            </AppText>
-            <Pressable style={styles.bannerBtn}>
-              <AppText style={styles.bannerBtnText}>
-                Subscribe Now
-              </AppText>
-            </Pressable>
-          </View>
         </View>
 
         {/* MEAL PLANS */}
@@ -186,43 +179,79 @@ export default function HomeScreen() {
               Let’s explore the best plan for you!
             </AppText>
           </View>
-          <AppText style={styles.seeAll}>See all ›</AppText>
+
+          <Pressable onPress={() => router.push("/(tabs)/explore")}>
+            <AppText style={styles.seeAll}>See all ›</AppText>
+          </Pressable>
         </View>
 
         <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
           data={data}
-          keyExtractor={(i) => i.id}
+          keyExtractor={(item) => item.id?.toString()}
           renderItem={({ item }) => (
-            <View style={styles.planCard}>
-              <Image source={{ uri: IMAGE_BASE_API2 + item.image }} style={styles.planImg} />
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: "/plan-details",
+                  params: { id: item.id },
+                })
+              }
+              style={styles.planCard}
+            >
+              <Image
+                source={{ uri: IMAGE_BASE_API2 + item.image }}
+                style={styles.planImg}
+              />
               <AppText style={styles.planName}>{item.name}</AppText>
               <AppText style={styles.planKcal}>{item.kcal}</AppText>
-            </View>
+            </Pressable>
           )}
         />
 
-        {/* PRODUCTS */}
+        {/* NEW ARRIVALS */}
         <View style={[styles.sectionHeader, styles.newArrivalHeader]}>
           <AppText variant="semiBold" style={styles.titleText}>
             New Arrivals in shop
           </AppText>
-          <AppText style={styles.seeAll}>See all ›</AppText>
+
+          <Pressable onPress={() => router.push("/(tabs)/explore")}>
+            <AppText style={styles.seeAll}>See all ›</AppText>
+          </Pressable>
         </View>
 
-        {data.map((p) => (
-          <View key={p.id} style={styles.product}>
-            <Image source={{ uri: IMAGE_BASE_API2 + p.image }} style={styles.productImg} />
+        {data.map((item) => (
+          <View key={item.id} style={styles.product}>
+            <Image
+              source={{ uri: IMAGE_BASE_API2 + item.image }}
+              style={styles.productImg}
+            />
+
             <View style={{ flex: 1 }}>
               <AppText variant="medium" style={styles.productName}>
-                {p.name}
+                {item.name}
               </AppText>
-              <AppText style={styles.productDesc}>{p.description}</AppText>
+
+              <AppText style={styles.productDesc}>
+                {item.description || ""}
+              </AppText>
+
               <View style={styles.productBottom}>
-                <AppText style={styles.price}>{p.price}</AppText>
-                <Pressable style={styles.buyBtn}>
-                  <AppText style={styles.buyText}>Buy Now</AppText>
+                <AppText style={styles.price}>
+                  {item.price ? `${item.price} QAR` : ""}
+                </AppText>
+
+                <Pressable
+                  style={styles.buyBtn}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/plan-details",
+                      params: { id: item.id },
+                    })
+                  }
+                >
+                  <AppText style={styles.buyText}>View</AppText>
                 </Pressable>
               </View>
             </View>
@@ -235,7 +264,7 @@ export default function HomeScreen() {
   );
 }
 
-/* ---------------- STYLES ---------------- */
+/* ---------------- STYLES (UNCHANGED) ---------------- */
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
@@ -276,57 +305,6 @@ const styles = StyleSheet.create({
   },
   badgeText: { fontSize: 10, color: "#fff" },
 
-  search: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E6E6E6",
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    height: 48,
-    marginBottom: 16,
-  },
-  searchInput: { flex: 1, marginHorizontal: 8 },
-
-  chips: { flexDirection: "row", gap: 12, marginBottom: 16 },
-  chip: {
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 18,
-    backgroundColor: Colors.chipBg,
-  },
-  chipActive: { backgroundColor: Colors.softPink },
-  chipActiveText: { color: Colors.textPrimary2 },
-  chipText: { color: Colors.textMuted2 },
-
-  newArrivalHeader: {
-    marginTop: 18, // 👈 gives breathing room above
-  },
-
-  banner: {
-    height: 150,
-    borderRadius: 18,
-    overflow: "hidden",
-    marginBottom: 20,
-  },
-  bannerImg: { width: "100%", height: "100%" },
-  bannerOverlay: {
-    position: "absolute",
-    left: 16,
-    bottom: 16,
-    right: 16,
-  },
-  bannerTitle: { color: Colors.white, fontSize: 18 },
-  bannerDesc: { color: Colors.white, fontSize: 12, marginVertical: 4 },
-  bannerBtn: {
-    backgroundColor: Colors.softPink,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-    alignSelf: "flex-start",
-  },
-  bannerBtnText: { color: Colors.textPrimary2 },
-
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -337,13 +315,20 @@ const styles = StyleSheet.create({
   subtitleText: { color: Colors.textMuted2 },
   seeAll: { color: Colors.textMuted2 },
 
-  planCard: { marginRight: 12, flexDirection: "column", width: 150 },
+  planCard: { marginRight: 12, width: 150 },
   planImg: { width: 140, height: 100, borderRadius: 14 },
-  planName: {
-    marginTop: 6, color: Colors.textPrimary2, flexShrink: 1,
-    flexWrap: "wrap",
-  },
+  planName: { marginTop: 6, color: Colors.textPrimary2 },
   planKcal: { color: Colors.softPink },
+
+  newArrivalHeader: { marginTop: 18 },
+
+  banner: {
+    height: 150,
+    borderRadius: 18,
+    overflow: "hidden",
+    marginBottom: 20,
+  },
+  bannerImg: { width: "100%", height: "100%" },
 
   product: {
     flexDirection: "row",

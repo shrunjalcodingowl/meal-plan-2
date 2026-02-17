@@ -4,121 +4,160 @@ import Colors from "@/constants/colors";
 import { useDetailHooks } from "@/hooks/userHooks";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import {
   Image,
   Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
-  TextInput,
   View,
 } from "react-native";
 
-/* ---------------- DATA ---------------- */
-
-const PLANS = [
-  {
-    id: "1",
-    title: "Clean & Lean",
-    kcal: "1200Kcal",
-    rating: "4.7",
-    delivery: "Free",
-    time: "20 min",
-    image: require("../../assets/images/plan-1-1.png"),
-  },
-  {
-    id: "2",
-    title: "Pure Nourish",
-    kcal: "1800Kcal",
-    rating: "4.7",
-    delivery: "Free",
-    time: "20 min",
-    image: require("../../assets/images/plan-2-1.png"),
-  },
-  {
-    id: "3",
-    title: "Clean & Lean",
-    kcal: "1500Kcal",
-    rating: "4.7",
-    delivery: "Free",
-    time: "20 min",
-    image: require("../../assets/images/plan-3-1.png"),
-  },
-];
-
 export default function ExploreScreen() {
-  const [filter, setFilter] = useState<"all" | "weekly" | "monthly">("all");
-  const [search, setSearch] = useState("");
-  const [allData, setAllData] = useState([])
-  const [FilterData, setFilterData] = useState([])
-  const { token, userDetails } = useDetailHooks()
+  const [filter, setFilter] =
+    useState<"all" | "weekly" | "monthly">("all");
+  const [allData, setAllData] = useState<any[]>([]);
+  const [filterData, setFilterData] = useState<any[]>([]);
+  const [defaultAddress, setDefaultAddress] = useState("");
 
+  const { token } = useDetailHooks();
 
-  const onChangeWishList = async (key) => {
+  /* ================= FETCH ADDRESS ================= */
+
+  const fetchAddress = async () => {
+    if (!token) return;
+
     try {
-      const params = {
-        "package_id": Number(key)
-      }
-      const response = await axios.post(API_CONSTANTS.wishlistAdd, params,
+      const response = await axios.post(
+        API_CONSTANTS.addressList,
+        {},
         {
           headers: {
-            Authorization: `Bearer ${token}`, // if required
+            Authorization: `Bearer ${token}`,
           },
         }
-      )
-      const { data, status } = response || {}
-      const { data: mdata } = data || {}
-      
-      if (status == 200) {
-        fetchExploreData()
+      );
+
+      const addressList = response?.data?.data || [];
+      const defaultAddr = addressList.find(
+        (addr: any) => Number(addr.is_default) === 1
+      );
+
+      if (defaultAddr) {
+        setDefaultAddress(defaultAddr.address_line_1);
       }
     } catch (error) {
-      console.log(error)
+      console.log("Address fetch error");
     }
-  }
+  };
 
-  const changeFilter = (key) => {
-    setFilter(key)
-    switch (key) {
-      case "all":
-        setFilterData(allData)
-        break;
-      case "monthly":
-        setFilterData(allData.filter(item => item.type === "monthly"))
-        break;
-      case "weekly":
-        setFilterData(allData.filter(item => item.type === "weekly"))
-        break;
+  /* ================= FETCH PACKAGES ================= */
 
-      default:
-        setFilterData(allData)
-        break;
-    }
-  }
   const fetchExploreData = async () => {
     try {
+      const response = await axios.post(
+        API_CONSTANTS.exploreData,
+        {},
+        token
+          ? {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          : {}
+      );
 
-      const response = await axios.post(API_CONSTANTS.exploreData, {})
-      const { data, status } = response || {}
-      const { data: mdata } = data || {}
+      const { data, status } = response || {};
+      const mdata = data?.data || [];
 
-      if (status == 200) {
-        if (mdata && mdata.length !== 0) {
-          setAllData(mdata)
-          setFilterData(mdata)
-        } else {
-          setAllData([])
-          setFilterData([])
-        }
+      if (status === 200) {
+        setAllData(mdata);
+        setFilterData(mdata);
       }
-    } catch (error) {
-      console.log(error)
+    } catch (error: any) {
+      console.log("Explore fetch error:", error?.response?.data);
     }
-  }
+  };
 
-  useEffect(() => { fetchExploreData() }, [])
+  /* ================= WISHLIST TOGGLE ================= */
+
+  const toggleWishlist = async (id: number) => {
+    // 🔐 If guest → go to login
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
+    // Instant UI toggle
+    const updatedData = allData.map((item) => {
+      if (item.id === id) {
+        return {
+          ...item,
+          is_wishlist:
+            Number(item.is_wishlist) === 1 ? 0 : 1,
+        };
+      }
+      return item;
+    });
+
+    setAllData(updatedData);
+    applyFilter(filter, updatedData);
+
+    try {
+      await axios.post(
+        API_CONSTANTS.wishlistAdd,
+        { package_id: id },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+    } catch (error) {
+      console.log("Wishlist toggle failed");
+    }
+  };
+
+  /* ================= FILTER ================= */
+
+  const applyFilter = (
+    key: "all" | "weekly" | "monthly",
+    sourceData = allData
+  ) => {
+    setFilter(key);
+
+    switch (key) {
+      case "weekly":
+        setFilterData(
+          sourceData.filter(
+            (item) => item.type === "weekly"
+          )
+        );
+        break;
+      case "monthly":
+        setFilterData(
+          sourceData.filter(
+            (item) => item.type === "monthly"
+          )
+        );
+        break;
+      default:
+        setFilterData(sourceData);
+    }
+  };
+
+  /* ================= LIFECYCLE ================= */
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchExploreData();
+      fetchAddress();
+    }, [token])
+  );
+
+  /* ================= UI ================= */
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -127,7 +166,7 @@ export default function ExploreScreen() {
         contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* ---------------- HEADER ---------------- */}
+        {/* HEADER */}
         <View style={styles.header}>
           <Pressable onPress={() => router.push("/settings")}>
             <Image
@@ -136,75 +175,41 @@ export default function ExploreScreen() {
             />
           </Pressable>
 
-          {/* CENTER */}
           <View style={styles.headerCenter}>
-            <AppText style={styles.deliverTo}>DELIVER TO</AppText>
-            <View style={styles.locationRow}>
-              <AppText variant="medium" style={styles.locationText}>
-                Home - Al Wakrah
-              </AppText>
-              <Image
-                source={require("../../assets/images/icons/chevron-down.png")}
-                style={styles.icon12}
-              />
-            </View>
+            <AppText style={styles.deliverTo}>
+              Location
+            </AppText>
+            <AppText
+              variant="medium"
+              style={styles.locationText}
+            >
+              {token
+                ? defaultAddress || "Select Address"
+                : "Guest User"}
+            </AppText>
           </View>
 
-          {/* CART */}
-          <Pressable onPress={() => router.push("/cart")}>
+          <Pressable
+            onPress={() => router.push("/(tabs)/cart")}
+          >
             <Image
               source={require("../../assets/images/icons/cart.png")}
               style={styles.headerIcon}
             />
-            <View style={styles.badge}>
-              <AppText style={styles.badgeText}>2</AppText>
-            </View>
           </Pressable>
         </View>
 
-        {/* ---------------- GREETING ---------------- */}
-        <AppText style={styles.greeting}>
-          Hey Dhruv, <AppText variant="semiBold">Good Afternoon!</AppText>
-        </AppText>
-
-        {/* ---------------- SEARCH ---------------- */}
-        <View style={styles.searchBox}>
-          <Image
-            source={require("../../assets/images/icons/search.png")}
-            style={styles.icon18}
-          />
-
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="What do you want to have?"
-            placeholderTextColor={Colors.textMuted2}
-            style={styles.searchInput}
-          />
-
-          {search.length > 0 && (
-            <Pressable onPress={() => setSearch("")}>
-              <Image
-                source={require("../../assets/images/icons/close.png")}
-                style={styles.icon16}
-              />
-            </Pressable>
-          )}
-        </View>
-
-        {/* ---------------- SECTION HEADER ---------------- */}
+        {/* SECTION HEADER */}
         <View style={styles.sectionHeader}>
-          <AppText variant="semiBold" style={styles.sectionTitle}>
+          <AppText
+            variant="semiBold"
+            style={styles.sectionTitle}
+          >
             Your Organic Plans
           </AppText>
-
-          <Image
-            source={require("../../assets/images/icons/filter.png")}
-            style={styles.icon20}
-          />
         </View>
 
-        {/* ---------------- FILTER CHIPS ---------------- */}
+        {/* FILTER CHIPS */}
         <View style={styles.chipsRow}>
           {[
             { key: "all", label: "All" },
@@ -215,7 +220,9 @@ export default function ExploreScreen() {
             return (
               <Pressable
                 key={item.key}
-                onPress={() => changeFilter(item.key as any)}
+                onPress={() =>
+                  applyFilter(item.key as any)
+                }
                 style={[
                   styles.chip,
                   active && styles.chipActive,
@@ -236,75 +243,80 @@ export default function ExploreScreen() {
           })}
         </View>
 
-        {/* ---------------- TITLE ---------------- */}
-        <AppText variant="semiBold" style={styles.chooseTitle}>
-          Choose What Suits You!
-        </AppText>
+        {/* PLANS */}
+        {filterData.map((plan) => {
+          const isWishlisted =
+            Number(plan.is_wishlist) === 1;
 
-        {/* ---------------- PLANS ---------------- */}
-        {FilterData.map((plan) => (
-          <Pressable
-            key={plan.id}
-            onPress={() => router.push({ pathname: "/plan-details", params: { id: JSON.stringify(plan.id) } })}
-            style={styles.planCard}
-          >
-            <Image source={{ uri: IMAGE_BASE_API2 + plan.image }} style={styles.planImage} />
-
-            <View style={styles.planBody}>
-              <AppText variant="semiBold" style={styles.planTitle}>
-                {plan.name}{" "}
-                {/* <AppText style={styles.kcal}>{plan.kcal}</AppText> */}
-              </AppText>
-
-              <AppText style={styles.planDesc}>
-                {plan.description}
-              </AppText>
-
-              <View style={styles.metaRow}>
-                <Ionicons
-                  // name={"heart-outline"}
-                  name={plan.is_wishlist == 0 ? "heart-outline" : "heart"}
-                  size={26}
-                  color={plan.is_wishlist == 0 ? "black" : "red"}
-                  onPress={() => onChangeWishList(plan.id)}
+          return (
+            <Pressable
+              key={plan.id}
+              onPress={() =>
+                router.push({
+                  pathname: "/plan-details",
+                  params: { id: plan.id },
+                })
+              }
+              style={styles.planCard}
+            >
+              <View>
+                <Image
+                  source={{
+                    uri:
+                      IMAGE_BASE_API2 +
+                      plan.image,
+                  }}
+                  style={styles.planImage}
                 />
-                {/* <View style={styles.metaItem}>
-                  <Image
-                    source={require("../../assets/images/icons/star.png")}
-                    style={styles.metaIcon}
-                  />
-                  <AppText style={styles.metaText}>{plan.rating}</AppText>
-                </View>
 
-                <View style={styles.metaItem}>
-                  <Image
-                    source={require("../../assets/images/icons/delivery.png")}
-                    style={styles.metaIcon}
+                {/* HEART ICON */}
+                <Pressable
+                  style={styles.heartIcon}
+                  onPress={() =>
+                    toggleWishlist(plan.id)
+                  }
+                >
+                  <Ionicons
+                    name={
+                      isWishlisted
+                        ? "heart"
+                        : "heart-outline"
+                    }
+                    size={24}
+                    color={
+                      isWishlisted
+                        ? "red"
+                        : "black"
+                    }
                   />
-                  <AppText style={styles.metaText}>{plan.delivery}</AppText>
-                </View>
-
-                <View style={styles.metaItem}>
-                  <Image
-                    source={require("../../assets/images/icons/clock.png")}
-                    style={styles.metaIcon}
-                  />
-                  <AppText style={styles.metaText}>{plan.time}</AppText>
-                </View> */}
-
-                {/* <Pressable style={styles.detailsBtn}>
-                  <AppText style={styles.detailsText}>Details</AppText>
-                </Pressable> */}
+                </Pressable>
               </View>
-            </View>
-          </Pressable>
-        ))}
+
+              <View style={styles.planBody}>
+                <AppText
+                  variant="semiBold"
+                  style={styles.planTitle}
+                >
+                  {plan.name}
+                </AppText>
+
+                <AppText style={styles.planDesc}>
+                  {plan.description}
+                </AppText>
+
+                <AppText style={styles.price}>
+                  {plan.price} QAR
+                </AppText>
+              </View>
+            </Pressable>
+          );
+        })}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-/* ---------------- STYLES ---------------- */
+/* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
@@ -319,34 +331,10 @@ const styles = StyleSheet.create({
 
   headerCenter: { flex: 1, alignItems: "center" },
   deliverTo: { fontSize: 11, color: Colors.textMuted2 },
-
-  locationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
+  locationText: {
+    fontSize: 14,
+    color: Colors.accent,
   },
-  locationText: { fontSize: 14, color: Colors.accent },
-
-  greeting: {
-    fontSize: 16,
-    color: Colors.textPrimary2,
-    marginBottom: 12,
-  },
-
-  cartWrapper: { position: "relative" },
-
-  badge: {
-    position: "absolute",
-    top: 2,
-    right: 2,
-    backgroundColor: "red",
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badgeText: { fontSize: 10, color: "#fff" },
 
   headerIcon: {
     width: 45,
@@ -354,31 +342,11 @@ const styles = StyleSheet.create({
     resizeMode: "contain",
   },
 
-  searchBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    height: 48,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#eee",
-  },
-  searchInput: {
-    flex: 1,
-    marginHorizontal: 10,
-    fontSize: 14,
+  sectionHeader: { marginBottom: 16 },
+  sectionTitle: {
+    fontSize: 18,
     color: Colors.textPrimary2,
   },
-
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  sectionTitle: { fontSize: 18, color: Colors.textPrimary2 },
 
   chipsRow: {
     flexDirection: "row",
@@ -394,20 +362,21 @@ const styles = StyleSheet.create({
     backgroundColor: "#EFEFEF",
     gap: 10,
   },
-  chipActive: { backgroundColor: Colors.softPink },
-  chipText: { fontSize: 14, color: Colors.textMuted2 },
-  chipTextActive: { color: Colors.textPrimary2 },
+  chipActive: {
+    backgroundColor: Colors.softPink,
+  },
+  chipText: {
+    fontSize: 14,
+    color: Colors.textMuted2,
+  },
+  chipTextActive: {
+    color: Colors.textPrimary2,
+  },
   dot: {
     width: 16,
     height: 16,
     borderRadius: 8,
     backgroundColor: "#000",
-  },
-
-  chooseTitle: {
-    fontSize: 18,
-    color: Colors.textPrimary2,
-    marginBottom: 12,
   },
 
   planCard: {
@@ -416,42 +385,37 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "#fff",
   },
-  planImage: { width: "100%", height: 160 },
+
+  planImage: {
+    width: "100%",
+    height: 160,
+  },
+
+  heartIcon: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 6,
+    elevation: 3,
+  },
 
   planBody: { padding: 14 },
-  planTitle: { fontSize: 16, color: Colors.textPrimary2 },
-  kcal: { color: Colors.softPink },
-
+  planTitle: {
+    fontSize: 16,
+    color: Colors.textPrimary2,
+  },
   planDesc: {
     fontSize: 12,
     color: Colors.textMuted2,
-    marginVertical: 6,
+    marginTop: 6,
   },
 
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
+  price: {
+    marginTop: 8,
+    fontSize: 16,
+    color: Colors.softPink,
+    fontWeight: "600",
   },
-  metaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  metaIcon: { width: 16, height: 16, resizeMode: "contain" },
-  metaText: { fontSize: 12, color: Colors.textPrimary2 },
-
-  detailsBtn: {
-    marginLeft: "auto",
-    backgroundColor: Colors.softGreen,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  detailsText: { fontSize: 12, color: Colors.textPrimary2 },
-
-  icon20: { width: 20, height: 20 },
-  icon18: { width: 18, height: 18 },
-  icon16: { width: 16, height: 16 },
-  icon12: { width: 12, height: 12 },
 });

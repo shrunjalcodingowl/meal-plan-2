@@ -3,8 +3,8 @@ import { API_CONSTANTS, IMAGE_BASE_API2 } from "@/constants/apiConstants";
 import Colors from "@/constants/colors";
 import { useDetailHooks } from "@/hooks/userHooks";
 import axios from "axios";
-import { router } from "expo-router";
-import { useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import {
   Dimensions,
   FlatList,
@@ -12,259 +12,229 @@ import {
   Pressable,
   RefreshControl,
   SafeAreaView,
-  ScrollView,
   StyleSheet,
-  View
+  View,
+  ActivityIndicator,
 } from "react-native";
 
-/* ---------------- DATA ---------------- */
+const { height } = Dimensions.get("window");
 
-const PLANS = [
-  {
-    id: "1",
-    title: "Clean & Lean",
-    kcal: "1200Kcal",
-    rating: "4.7",
-    delivery: "Free",
-    time: "20 min",
-    image: require("../../assets/images/plan-1-1.png"),
-  },
-  {
-    id: "2",
-    title: "Pure Nourish",
-    kcal: "1800Kcal",
-    rating: "4.7",
-    delivery: "Free",
-    time: "20 min",
-    image: require("../../assets/images/plan-2-1.png"),
-  },
-  {
-    id: "3",
-    title: "Clean & Lean",
-    kcal: "1500Kcal",
-    rating: "4.7",
-    delivery: "Free",
-    time: "20 min",
-    image: require("../../assets/images/plan-3-1.png"),
-  },
-];
-const { width, height } = Dimensions.get("window");
 export default function WishlistScreen() {
-  const [filter, setFilter] = useState<"all" | "weekly" | "monthly">("all");
-  const [search, setSearch] = useState("");
-  const [allData, setAllData] = useState([])
-  const { token, userDetails } = useDetailHooks()
+  const [allData, setAllData] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const onChangeWishList = async (key) => {
-    try {
-      const params = {
-        "package_id": Number(key)
-      }
-      const response = await axios.post(API_CONSTANTS.wishlistAdd, params,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`, // if required
-          },
-        }
-      )
-      const { data, status } = response || {}
-      const { data: mdata } = data || {}
+  const { token } = useDetailHooks();
 
-      if (status == 200) {
-        fetchWishList()
-      }
-    } catch (error) {
-      console.log(error)
-    }
-  }
+  /* ================= FETCH ================= */
 
   const fetchWishList = async () => {
-    try {
+    if (!token) {
+      setAllData([]);
+      return;
+    }
 
-      const response = await axios.post(API_CONSTANTS.wishlist, {},
+    try {
+      setRefreshing(true);
+      setLoading(true);
+
+      const response = await axios.post(
+        API_CONSTANTS.wishlist,
+        {},
         {
           headers: {
-            Authorization: `Bearer ${token}`, // if required
+            Authorization: `Bearer ${token}`,
           },
         }
-      )
-      const { data, status } = response || {}
-      const { data: mdata } = data || {}
-      
-      if (status == 200) {
-        if (mdata && mdata.length !== 0) {
-          setAllData(mdata)
-        } else {
-          setAllData([])
-        }
+      );
+
+      const { data, status } = response;
+      const { data: mdata } = data || {};
+
+      if (status === 200) {
+        setAllData(mdata || []);
       }
     } catch (error) {
-      console.log(error)
+      console.log("Wishlist Error:", error);
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
     }
+  };
+
+  /* ================= REMOVE ================= */
+
+  const onChangeWishList = async (key: number) => {
+    try {
+      await axios.post(
+        API_CONSTANTS.wishlistAdd,
+        { package_id: key },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      fetchWishList();
+    } catch (error) {
+      console.log("Remove Error:", error);
+    }
+  };
+
+  /* ================= REFRESH ON FOCUS ================= */
+
+  useFocusEffect(
+    useCallback(() => {
+      if (token) {
+        fetchWishList();
+      }
+    }, [token])
+  );
+
+  /* ================= RENDER ITEM ================= */
+
+  const renderItem = ({ item }: any) => (
+    <Pressable
+      onPress={() =>
+        router.push({
+          pathname: "/plan-details",
+          params: { id: item.id },
+        })
+      }
+      style={styles.planCard}
+    >
+      <Image
+        source={{ uri: IMAGE_BASE_API2 + item.image_path }}
+        style={styles.planImage}
+      />
+
+      <View style={styles.planBody}>
+        <AppText variant="semiBold" style={styles.planTitle}>
+          {item.name}
+        </AppText>
+
+        <AppText style={styles.planDesc}>
+          {item.description}
+        </AppText>
+
+        <View style={styles.metaRow}>
+          <Pressable
+            style={styles.detailsBtn}
+            onPress={() => onChangeWishList(item?.id)}
+          >
+            <AppText style={styles.detailsText}>
+              Remove
+            </AppText>
+          </Pressable>
+        </View>
+      </View>
+    </Pressable>
+  );
+
+  /* ================= HEADER ================= */
+
+  const Header = () => (
+    <View style={styles.header}>
+      <Pressable onPress={() => router.push("/settings")}>
+        <Image
+          source={require("../../assets/images/icons/menu.png")}
+          style={styles.headerIcon}
+        />
+      </Pressable>
+
+      <View style={styles.headerCenter}>
+        <AppText variant="semiBold" style={styles.sectionTitle}>
+          Wishlist
+        </AppText>
+      </View>
+
+      <Pressable onPress={() => router.push("/(tabs)/cart")}>
+        <Image
+          source={require("../../assets/images/icons/cart.png")}
+          style={styles.headerIcon}
+        />
+      </Pressable>
+    </View>
+  );
+
+  /* ================= LOGIN REQUIRED VIEW ================= */
+
+  if (!token) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <Header />
+        <View style={styles.loginContainer}>
+          <AppText style={styles.loginText}>
+            Please login to view your wishlist
+          </AppText>
+
+          <Pressable
+            style={styles.loginBtn}
+            onPress={() => router.push("/login")}
+          >
+            <AppText style={styles.loginBtnText}>
+              Login
+            </AppText>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
   }
 
-  useState(() => {
-    fetchWishList()
-  }, [])
+  /* ================= RETURN ================= */
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={{ paddingBottom: 24 }}
-        showsVerticalScrollIndicator={false}
-        scrollEnabled={false}
-      >
-        {/* ---------------- HEADER ---------------- */}
-        <View style={styles.header}>
-          <Pressable onPress={() => router.push("/settings")}>
-            <Image
-              source={require("../../assets/images/icons/menu.png")}
-              style={styles.headerIcon}
-            />
-          </Pressable>
+      <Header />
 
-          {/* CENTER */}
-          <View style={styles.headerCenter}>
-            <AppText style={styles.deliverTo}>DELIVER TO</AppText>
-            <View style={styles.locationRow}>
-              <AppText variant="medium" style={styles.locationText}>
-                Home - Al Wakrah
-              </AppText>
-              <Image
-                source={require("../../assets/images/icons/chevron-down.png")}
-                style={styles.icon12}
-              />
-            </View>
-          </View>
-
-          {/* CART */}
-          <Pressable style={styles.cartWrapper}>
-            <Image
-              source={require("../../assets/images/icons/cart.png")}
-              style={styles.headerIcon}
-            />
-            <View style={styles.badge}>
-              <AppText style={styles.badgeText}>2</AppText>
-            </View>
-          </Pressable>
+      {loading && !refreshing ? (
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" />
         </View>
-
-        {/* ---------------- SECTION HEADER ---------------- */}
-        <View style={styles.sectionHeader}>
-          <AppText variant="semiBold" style={styles.sectionTitle}>
-            Your Wishlist
-          </AppText>
-        </View>
-
-        {/* ---------------- PLANS ---------------- */}
+      ) : (
         <FlatList
           data={allData}
-          keyExtractor={(plan) => plan?.id}
-          renderItem={({ item }) => (
-            <Pressable
-              key={item.id}
-              onPress={() => router.push("/plan-details")}
-              style={styles.planCard}
-            >
-              <Image source={{ uri: IMAGE_BASE_API2 + item.image_path }} style={styles.planImage} />
-
-              <View style={styles.planBody}>
-                <AppText variant="semiBold" style={styles.planTitle}>
-                  {item.name}{" "}
-                  {/* <AppText style={styles.kcal}>{plan.kcal}</AppText> */}
-                </AppText>
-
-                <AppText style={styles.planDesc}>
-                  {item.description}
-                </AppText>
-
-                <View style={styles.metaRow}>
-                  {/* <View style={styles.metaItem}>
-                  <Image
-                    source={require("../../assets/images/icons/star.png")}
-                    style={styles.metaIcon}
-                  />
-                  <AppText style={styles.metaText}>{plan.rating}</AppText>
-                </View>
-
-                <View style={styles.metaItem}>
-                  <Image
-                    source={require("../../assets/images/icons/delivery.png")}
-                    style={styles.metaIcon}
-                  />
-                  <AppText style={styles.metaText}>{plan.delivery}</AppText>
-                </View>
-
-                <View style={styles.metaItem}>
-                  <Image
-                    source={require("../../assets/images/icons/clock.png")}
-                    style={styles.metaIcon}
-                  />
-                  <AppText style={styles.metaText}>{plan.time}</AppText>
-                </View> */}
-
-                  <Pressable style={styles.detailsBtn} onPress={() => onChangeWishList(item?.id)}>
-                    <AppText style={styles.detailsText}>Remove</AppText>
-                  </Pressable>
-                </View>
-              </View>
-            </Pressable>
-          )}
-          contentContainerStyle={{ paddingBottom: height * 0.15 }}
+          keyExtractor={(item) =>
+            item?.id?.toString()
+          }
+          renderItem={renderItem}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingBottom: height * 0.15,
+          }}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={false} onRefresh={fetchWishList} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={fetchWishList}
+            />
+          }
+          ListEmptyComponent={
+            <View style={{ alignItems: "center", marginTop: 40 }}>
+              <AppText>No items in wishlist</AppText>
+            </View>
           }
         />
-      </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
 
-/* ---------------- STYLES ---------------- */
+/* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
-  container: { flex: 1, paddingHorizontal: 16 },
 
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingTop: 49,
-    marginBottom: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
   },
 
   headerCenter: { flex: 1, alignItems: "center" },
-  deliverTo: { fontSize: 11, color: Colors.textMuted2 },
-
-  locationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  locationText: { fontSize: 14, color: Colors.accent },
-
-  greeting: {
-    fontSize: 16,
-    color: Colors.textPrimary2,
-    marginBottom: 12,
-  },
-
-  cartWrapper: { position: "relative" },
-
-  badge: {
-    position: "absolute",
-    top: 2,
-    right: 2,
-    backgroundColor: "red",
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badgeText: { fontSize: 10, color: "#fff" },
 
   headerIcon: {
     width: 45,
@@ -272,60 +242,9 @@ const styles = StyleSheet.create({
     resizeMode: "contain",
   },
 
-  searchBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    height: 48,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#eee",
-  },
-  searchInput: {
-    flex: 1,
-    marginHorizontal: 10,
-    fontSize: 14,
-    color: Colors.textPrimary2,
-  },
-
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  sectionTitle: { fontSize: 18, color: Colors.textPrimary2 },
-
-  chipsRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 20,
-  },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#EFEFEF",
-    gap: 10,
-  },
-  chipActive: { backgroundColor: Colors.softPink },
-  chipText: { fontSize: 14, color: Colors.textMuted2 },
-  chipTextActive: { color: Colors.textPrimary2 },
-  dot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: "#000",
-  },
-
-  chooseTitle: {
+  sectionTitle: {
     fontSize: 18,
     color: Colors.textPrimary2,
-    marginBottom: 12,
   },
 
   planCard: {
@@ -334,11 +253,18 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "#fff",
   },
-  planImage: { width: "100%", height: 160 },
+
+  planImage: {
+    width: "100%",
+    height: 160,
+  },
 
   planBody: { padding: 14 },
-  planTitle: { fontSize: 16, color: Colors.textPrimary2 },
-  kcal: { color: Colors.softPink },
+
+  planTitle: {
+    fontSize: 16,
+    color: Colors.textPrimary2,
+  },
 
   planDesc: {
     fontSize: 12,
@@ -349,15 +275,7 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
   },
-  metaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  metaIcon: { width: 16, height: 16, resizeMode: "contain" },
-  metaText: { fontSize: 12, color: Colors.textPrimary2 },
 
   detailsBtn: {
     marginLeft: "auto",
@@ -366,10 +284,41 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
   },
-  detailsText: { fontSize: 12, color: Colors.textPrimary2 },
 
-  icon20: { width: 20, height: 20 },
-  icon18: { width: 18, height: 18 },
-  icon16: { width: 16, height: 16 },
-  icon12: { width: 12, height: 12 },
+  detailsText: {
+    fontSize: 12,
+    color: Colors.textPrimary2,
+  },
+
+  loaderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  loginContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 40,
+  },
+
+  loginText: {
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 20,
+    color: Colors.textPrimary2,
+  },
+
+  loginBtn: {
+    backgroundColor: Colors.softPink,
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 20,
+  },
+
+  loginBtnText: {
+    fontSize: 14,
+    color: Colors.textPrimary2,
+  },
 });

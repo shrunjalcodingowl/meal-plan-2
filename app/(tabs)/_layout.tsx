@@ -15,7 +15,7 @@ export default function TabLayout() {
       <Tabs.Screen name="explore" />
       <Tabs.Screen name="index" />
       <Tabs.Screen name="cart" />
-      <Tabs.Screen name="profile" />
+      {/* <Tabs.Screen name="profile" /> */}
     </Tabs>
   );
 }
@@ -45,11 +45,11 @@ function CustomTabBar({ state, navigation }: any) {
       label: "Cart",
       icon: require("../../assets/images/icons/cart-2.png"),
     },
-    {
-      name: "profile",
-      label: "Profile",
-      icon: require("../../assets/images/icons/profile.png"),
-    },
+    // {
+    //   name: "profile",
+    //   label: "Profile",
+    //   icon: require("../../assets/images/icons/profile.png"),
+    // },
   ];
 
   return (

@@ -15,43 +15,53 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch } from "react-redux";
+import axios from "axios";
+import { API_CONSTANTS } from "@/constants/apiConstants";
 
 /* ---------------- ICON MAP ---------------- */
 
 const ICONS = {
   help: require("../assets/images/icons/help-support.png"),
-  orders: require("../assets/images/icons/help-support.png"),
   editProfile: require("../assets/images/icons/edit-profile.png"),
   address: require("../assets/images/icons/address-pin.png"),
-  invitation: require("../assets/images/icons/invitation.png"),
-  rate: require("../assets/images/icons/rate-star.png"),
-  account: require("../assets/images/icons/account-user.png"),
+  // orders: require("../assets/images/icons/help-support.png"),
   terms: require("../assets/images/icons/terms.png"),
   privacy: require("../assets/images/icons/privacy.png"),
   delete: require("../assets/images/icons/delete-account.png"),
   logout: require("../assets/images/icons/logout.png"),
 };
 
-/* ---------------- DATA ---------------- */
+/* ---------------- SCREEN ---------------- */
 
 export default function SettingsScreen() {
+  const { isLogin, token } = useDetailHooks();
+  const dispatch = useDispatch();
 
-  const { isLogin } = useDetailHooks();
   const SETTINGS = [
-    { label: "Help & Support", icon: ICONS.help, action: "support", visible: true },
-    { label: "My Orders", icon: ICONS.orders, action: "orders", visible: isLogin },
+
     { label: "Profile", icon: ICONS.editProfile, action: "Profile", visible: isLogin },
+
     { label: "My Addresses", icon: ICONS.address, action: "address", visible: isLogin },
-    // { label: "Follow US", icon: ICONS.invitation },
-    // { label: "Rate Us", icon: ICONS.rate },
-    // { label: "About", icon: ICONS.account, action: "myAccount" },
+
+    // { label: "My Orders", icon: ICONS.orders, action: "orders", visible: isLogin },
+
+    { label: "Help & Support", icon: ICONS.help, action: "support", visible: true },
+
     { label: "Terms & Conditions", icon: ICONS.terms, action: "condition", visible: true },
+
     { label: "Privacy Policy", icon: ICONS.privacy, action: "policy", visible: true },
-    { label: "Delete Account", icon: ICONS.delete, visible: isLogin },
+
+    { label: "Delete Account", icon: ICONS.delete, action: "delete", visible: isLogin },
+
+    // Show Logout if logged in
     { label: "Logout", icon: ICONS.logout, action: "logout", visible: isLogin },
+
+    // Show Login if NOT logged in
+    { label: "Login", icon: ICONS.logout, action: "login", visible: !isLogin },
   ];
-  const dispatch = useDispatch()
-  
+
+  /* ---------------- LOGOUT ---------------- */
+
   const handleLogout = () => {
     Alert.alert(
       "Logout",
@@ -61,9 +71,9 @@ export default function SettingsScreen() {
         {
           text: "Yes",
           onPress: async () => {
-            await AsyncStorage.clear()
-            dispatch(userDataClear())
-            router.replace("/login")
+            await AsyncStorage.clear();
+            dispatch(userDataClear());
+            router.replace("/login");
           },
         },
       ],
@@ -71,31 +81,61 @@ export default function SettingsScreen() {
     );
   };
 
-  const handlePress = async (action?: ActionType) => {
+  /* ---------------- DELETE ACCOUNT ---------------- */
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to permanently delete your account?",
+      [
+        { text: "No", style: "cancel" },
+        {
+          text: "Yes",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await axios.post(
+                API_CONSTANTS.deleteUser || "https://api.egmealplan.com/api/mobile/auth/delete-user",
+                {},
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
+
+              await AsyncStorage.clear();
+              dispatch(userDataClear());
+
+              router.replace("/login");
+            } catch (error: any) {
+              console.log("DELETE ERROR:", error?.response?.data);
+              Alert.alert("Error", "Unable to delete account. Please try again.");
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  /* ---------------- HANDLE PRESS ---------------- */
+
+  const handlePress = async (action?: string) => {
     if (!action) return;
 
-    if (action === "orders") {
-      router.push("/my-orders");
-      return;
-    }
-
     if (action === "Profile") {
-      router.push("/profile")
+      router.push("/profile");
       return;
     }
 
     if (action === "condition") {
-      router.push("/termsAndCondition")
-      return;
-    }
-
-    if (action === "myAccount") {
-      router.push("/myAccount")
+      router.push("/termsAndCondition");
       return;
     }
 
     if (action === "support") {
-      const url = "https://wa.me/+97433964245?text=Hi!%20I%20need%20support"
+      const url = "https://wa.me/+97433964245?text=Hi!%20I%20need%20support";
       const supported = await Linking.canOpenURL(url);
 
       if (supported) {
@@ -103,22 +143,36 @@ export default function SettingsScreen() {
       } else {
         Alert.alert("Error", "WhatsApp is not installed/Supported");
       }
+      return;
     }
 
     if (action === "address") {
-      router.push("/addressList")
+      router.push("/addressList");
       return;
     }
 
     if (action === "policy") {
-      router.push("/privacyPolicy")
+      router.push("/privacyPolicy");
       return;
     }
 
     if (action === "logout") {
       handleLogout();
+      return;
+    }
+
+    if (action === "login") {
+      router.push("/login");
+      return;
+    }
+
+    if (action === "delete") {
+      handleDeleteAccount();
+      return;
     }
   };
+
+  /* ---------------- UI ---------------- */
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -140,16 +194,19 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.list}>
-          {SETTINGS.map((item, index) => (
-            item.visible && (<Pressable
-              key={index}
-              style={styles.row}
-              onPress={() => handlePress(item.action)}
-            >
-              <Image source={item.icon} style={styles.rowIcon} />
-              <AppText style={styles.rowText}>{item.label}</AppText>
-            </Pressable>)
-          ))}
+          {SETTINGS.map(
+            (item, index) =>
+              item.visible && (
+                <Pressable
+                  key={index}
+                  style={styles.row}
+                  onPress={() => handlePress(item.action)}
+                >
+                  <Image source={item.icon} style={styles.rowIcon} />
+                  <AppText style={styles.rowText}>{item.label}</AppText>
+                </Pressable>
+              )
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
