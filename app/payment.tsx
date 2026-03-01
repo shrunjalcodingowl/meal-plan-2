@@ -1,3 +1,4 @@
+import PaymentModal from "@/components/payment-Modal";
 import { API_CONSTANTS } from "@/constants/apiConstants";
 import { useDetailHooks } from "@/hooks/userHooks";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,39 +12,44 @@ const { width, height } = Dimensions.get("window");
 
 export default function paymentScreen() {
     const [url, setUrl] = useState("")
+    const [visible, setVisible] = useState(false)
+    const [type, setType] = useState("")
     const { price } = useLocalSearchParams()
     const { userDetails, token } = useDetailHooks();
     const { email, phone, first_name, last_name } = userDetails || {}
 
-    useEffect(() => {
+    const fetchPaymentUrl = async () => {
 
-        const fetchPaymentUrl = async () => {
+        try {
 
-            try {
-
-                const params = {
-                    "amount": price,
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "phone": phone,
-                    "email": email,
-                    "country": "QA"
-                }
-
-                const respo = await axios.post(API_CONSTANTS.paymentInit, params, { headers: { Authorization: `Bearer ${token}` } })
-
-                const { data } = respo || {};
-                const { data: mdata } = data || {};
-                const { gateway_response } = mdata || {};
-                const { resultObj } = gateway_response || {};
-                const { payUrl } = resultObj || {};
-                setUrl(payUrl)
-            } catch (error) {
-                console.log(":err", error)
+            const params = {
+                "amount": price,
+                "first_name": first_name,
+                "last_name": last_name,
+                "phone": phone,
+                "email": email,
+                "country": "QA"
             }
-        }
-        fetchPaymentUrl()
 
+            const respo = await axios.post(API_CONSTANTS.paymentInit, params, { headers: { Authorization: `Bearer ${token}` } })
+
+            const { data } = respo || {};
+            const { data: mdata } = data || {};
+            const { gateway_response } = mdata || {};
+            const { resultObj } = gateway_response || {};
+            const { payUrl } = resultObj || {};
+            setUrl(payUrl)
+            if (type === 'failed') {
+                setType("")
+                setVisible(false)
+            }
+        } catch (error) {
+            console.log(":err", error)
+        }
+    }
+
+    useEffect(() => {
+        fetchPaymentUrl()
     }, [])
 
     return (
@@ -56,18 +62,20 @@ export default function paymentScreen() {
                 <Text style={styles.headerTitle}>Payment</Text>
             </View>
             <View style={{ flex: 1 }}>
-                {url &&
+                {url && type === "" &&
                     <WebView
                         source={{ uri: url }}
                         onShouldStartLoadWithRequest={(navState) => {
                             const { loading } = navState || {}
                             if (navState.url.includes("Paid") && !loading) {
-                                router.replace('/(tabs)')
+                                setType("paid")
+                                setVisible(true)
                                 return false;
                             }
 
-                            if (navState.url.includes("payment-failure")) {
-                                router.back()
+                            if (navState.url.includes("Failed")) {
+                                setType("failed")
+                                setVisible(true)
                                 return false
                             }
                             return true;
@@ -76,6 +84,23 @@ export default function paymentScreen() {
                     />
                 }
             </View>
+            <PaymentModal
+                visible={visible}
+                type={type}
+                amount={price}
+                onClose={() => {
+                    if (type === 'paid') {
+                        router.replace('/(tabs)')
+                    } else {
+                        router.back()
+                    }
+
+                }}
+                onRetry={() => {
+                    setVisible(false)
+                    fetchPaymentUrl()
+                }}
+            />
         </SafeAreaView>
     )
 }
